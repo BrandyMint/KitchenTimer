@@ -1,0 +1,9 @@
+<!DOCTYPE RCC><RCC version="1.0">
+  <qresource prefix="/">
+    <file>images/background.png</file>
+
+    <file>fonts/Cartonsix NC.ttf</file>
+
+    <file>translations/ru.qm</file>
+  </qresource>
+</RCC>

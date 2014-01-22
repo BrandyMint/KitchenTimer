@@ -1,0 +1,21 @@
+Building for GNU/Linux on Desktop
+=================================
+
+Execute following commands to build Qt-5.2.0 for current user:
+
+cd $(QT_BUILD_DIR)
+wget http://download.qt-project.org/official_releases/qt/5.2/5.2.0/single/qt-everywhere-opensource-src-5.2.0.tar.xz
+tar xJf qt-everywhere-opensource-src-5.2.0.tar.xz
+cd qt-everywhere-opensource-src-5.2.0
+./configure -no-pch -opensource -confirm-license
+make
+
+To build Kitchen Timer using previously built Qt release:
+
+cd $(KITCHENTIMER_REPOSITORY)/kitchentimer
+$(QT_BUILD_DIR)/qt-everywhere-opensource-src-5.2.0/qtbase/bin/qmake
+make
+
+To run Kitchen Timer:
+
+./kitchentimer
