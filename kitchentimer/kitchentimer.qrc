@@ -1,9 +1,25 @@
 <!DOCTYPE RCC><RCC version="1.0">
   <qresource prefix="/">
     <file>images/background.png</file>
+    <file>images/previous-timer.png</file>
+    <file>images/next-timer.png</file>
+    <file>images/previous-dish.png</file>
+    <file>images/next-dish.png</file>
+    <file>images/current-timer.png</file>
+    <file>images/timer-list.png</file>
+    <file>images/audio-enabled.png</file>
+    <file>images/audio-disabled.png</file>
+    <file>images/vibrosignal-enabled.png</file>
+    <file>images/vibrosignal-disabled.png</file>
+    <file>images/bookmarks.png</file>
+    <file>images/reference-close.png</file>
+    <file>images/reference-return.png</file>
+    <file>images/reference-search.png</file>
 
     <file>fonts/Cartonsix NC.ttf</file>
 
     <file>translations/ru.qm</file>
+
+    <file>reference/reference.txt</file>
   </qresource>
 </RCC>

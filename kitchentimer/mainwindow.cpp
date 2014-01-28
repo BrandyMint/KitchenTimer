@@ -1,81 +1,144 @@
 #include "mainwindow.h"
 #include "pageintro.h"
-#include "pagetimer.h"
-#include "pagetimerlist.h"
+#include "pagetimers.h"
+#include "pagetimeredit.h"
 #include "pagedishselect.h"
-#include "pagedishdetails.h"
+#include "application.h"
+
+#include <stdio.h>
 
 MainWindow::MainWindow ()
-    : QStackedWidget (), dish_predecessor_page (DishPredecessorPageUndefined)
+    : QStackedWidget ()
 {
     setWindowFlags (Qt::FramelessWindowHint);
     resize (540, 768);
 
     addWidget (page_intro = new PageIntro (this));
-    addWidget (page_timer = new PageTimer (this));
-    addWidget (page_timer_list = new PageTimerList (this));
+    addWidget (page_timers = new PageTimers (this));
+    addWidget (page_timer_edit = new PageTimerEdit (this));
     addWidget (page_dish_select = new PageDishSelect (this));
-    addWidget (page_dish_details = new PageDishDetails (this));
 
-    connect (page_intro, SIGNAL (switchToPageTimer ()), this, SLOT (switchToPageTimer ()));
-    connect (page_timer, SIGNAL (switchToPageTimerList ()), this, SLOT (switchToPageTimerList ()));
-    connect (page_timer, SIGNAL (switchToPageDishSelect ()), this, SLOT (switchToPageDishSelect ()));
-    connect (page_timer_list, SIGNAL (switchToPageTimer ()), this, SLOT (switchToPageTimer ()));
-    connect (page_timer_list, SIGNAL (switchToPageDishSelect ()), this, SLOT (switchToPageDishSelect ()));
-    connect (page_dish_select, SIGNAL (switchToPageDishDetails ()), this, SLOT (switchToPageDishDetails ()));
-    connect (page_dish_select, SIGNAL (leavePage ()), this, SLOT (leavePageDishDetails ()));
-    connect (page_dish_details, SIGNAL (switchToPageDishSelect ()), this, SLOT (switchToPageDishSelect ()));
-    connect (page_dish_details, SIGNAL (leavePage ()), this, SLOT (leavePageDishDetails ()));
+    connect (page_intro, SIGNAL (switchToPageTimers ()), this, SLOT (switchToPageTimers ()));
+    connect (page_timers, SIGNAL (switchToPageDishSelect ()), this, SLOT (switchToPageDishSelect ()));
+    connect (page_timers, SIGNAL (previousTimer ()), this, SLOT (previousTimer ()));
+    connect (page_timers, SIGNAL (nextTimer ()), this, SLOT (nextTimer ()));
+    connect (page_timers, SIGNAL (removeTimer (int)), this, SLOT (removeTimer (int)));
+    connect (page_timers, SIGNAL (editCurrentTimer ()), this, SLOT (editCurrentTimer ()));
+    connect (page_timer_edit, SIGNAL (cancel ()), this, SLOT (cancelCurrentTimer ()));
+    connect (page_timer_edit, SIGNAL (accept (const QString&, const QTime&)), this, SLOT (acceptCurrentTimer (const QString&, const QTime&)));
+    connect (page_dish_select, SIGNAL (setCurrentDish (int)), this, SLOT (setCurrentDish (int)));
+    connect (page_dish_select, SIGNAL (leavePage ()), this, SLOT (leavePageDishSelect ()));
+    connect (page_dish_select, SIGNAL (previousDish ()), this, SLOT (previousDish ()));
+    connect (page_dish_select, SIGNAL (nextDish ()), this, SLOT (nextDish ()));
+    connect (page_dish_select, SIGNAL (adjustTimer (const QTime&, const QString&)),
+	     this, SLOT (adjustTimerFromDishDetails (const QTime&, const QString&)));
 
     switchToPageIntro ();
-
-    show ();
 }
 MainWindow::~MainWindow ()
 {
 }
 void MainWindow::switchToPageIntro ()
 {
-    if (page_intro)
-	setCurrentWidget (page_intro);
+    setCurrentWidget (page_intro);
 }
-void MainWindow::switchToPageTimer ()
+void MainWindow::switchToPageTimers ()
 {
-    if (page_timer)
-	setCurrentWidget (page_timer);
+    page_timers->updateContent ();
+    setCurrentWidget (page_timers);
 }
-void MainWindow::switchToPageTimerList ()
+void MainWindow::switchToPageTimerEdit ()
 {
-    if (page_timer_list)
-	setCurrentWidget (page_timer_list);
+    page_timer_edit->updateContent ();
+    setCurrentWidget (page_timer_edit);
 }
 void MainWindow::switchToPageDishSelect ()
 {
-    if (page_dish_select) {
-	QWidget *page = currentWidget ();
-	if (page == page_timer_list)
-	    dish_predecessor_page = DishPredecessorPageTimerList;
-	else if (page == page_timer)
-	    dish_predecessor_page = DishPredecessorPageTimer;
-	setCurrentWidget (page_dish_select);
-    }
+    setCurrentWidget (page_dish_select);
 }
-void MainWindow::switchToPageDishDetails ()
+void MainWindow::setCurrentDish (int plain_index)
 {
-    if (page_dish_details)
-	setCurrentWidget (page_dish_details);
+    app->getReferenceModel ().setCurrentIndex (plain_index);
 }
 void MainWindow::leavePageDishSelect ()
 {
-    if (dish_predecessor_page == DishPredecessorPageTimerList)
-	setCurrentWidget (page_timer_list);
-    else
-	setCurrentWidget (page_timer);
+    setCurrentWidget (page_timers);
 }
-void MainWindow::leavePageDishDetails ()
+void MainWindow::previousTimer ()
 {
-    if (dish_predecessor_page == DishPredecessorPageTimerList)
-	setCurrentWidget (page_timer_list);
-    else
-	setCurrentWidget (page_timer);
+    int current_timer_index = app->getCurrentTimerIndex ();
+    if (current_timer_index > 0) {
+	app->setCurrentTimerIndex (current_timer_index - 1);
+	page_timers->updateContentSubpageCurrentTimer ();
+    }
+}
+void MainWindow::nextTimer ()
+{
+    QList<Timer*> &timers = app->getTimers ();
+    int current_timer_index = app->getCurrentTimerIndex ();
+    if (current_timer_index < (timers.count () - 1)) {
+	app->setCurrentTimerIndex (current_timer_index + 1);
+	page_timers->updateContentSubpageCurrentTimer ();
+    }
+}
+void MainWindow::removeTimer (int index)
+{
+    QList<Timer*> &timers = app->getTimers ();
+    if ((index >= 0) && (index < timers.count ())) {
+	Timer *timer = timers.takeAt (index);
+	delete timer;
+	page_timers->updateContent ();
+    }
+}
+void MainWindow::editCurrentTimer ()
+{
+    page_timer_edit->updateContent ();
+    setCurrentWidget (page_timer_edit);
+}
+void MainWindow::cancelCurrentTimer ()
+{
+    page_timers->updateContent ();
+    setCurrentWidget (page_timers);
+}
+void MainWindow::acceptCurrentTimer (const QString &title, const QTime &period)
+{
+    QList<Timer*> &timers = app->getTimers ();
+    int current_timer_index = app->getCurrentTimerIndex ();
+    if ((current_timer_index >= 0) && (current_timer_index < timers.count ())) {
+	Timer *timer = timers.at (current_timer_index);
+	timer->stop ();
+	timer->setTitle (title);
+	timer->setPeriod (period);
+	timer->setTimeLeft (period);
+    }
+    page_timers->updateContent ();
+    setCurrentWidget (page_timers);
+}
+void MainWindow::previousDish ()
+{
+    ReferenceModel &reference_model = app->getReferenceModel ();
+    int current_index = reference_model.getCurrentIndex ();
+    QList<ReferenceItem*> &plain_list = reference_model.getPlainList ();
+    if (current_index > 0 && current_index < plain_list.size ()) {
+	reference_model.setCurrentIndex (current_index - 1);
+	page_dish_select->updateContentSubpageDetails ();
+    }
+}
+void MainWindow::nextDish ()
+{
+    ReferenceModel &reference_model = app->getReferenceModel ();
+    int current_index = reference_model.getCurrentIndex ();
+    QList<ReferenceItem*> &plain_list = reference_model.getPlainList ();
+    if (current_index >= 0 && current_index < (plain_list.size () - 1)) {
+	reference_model.setCurrentIndex (current_index + 1);
+	page_dish_select->updateContentSubpageDetails ();
+    }
+}
+void MainWindow::adjustTimerFromDishDetails (const QTime &time, const QString &title)
+{
+    Timer *new_timer = new Timer (time, time, title);
+    app->addTimer (new_timer);
+    app->setCurrentTimerIndex (app->getTimers ().size () - 1);
+    page_timers->updateContent ();
+    setCurrentWidget (page_timers);
 }

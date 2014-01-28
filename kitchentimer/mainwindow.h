@@ -6,10 +6,9 @@
 #include <QStackedWidget>
 
 class PageIntro;
-class PageTimer;
-class PageTimerList;
+class PageTimers;
+class PageTimerEdit;
 class PageDishSelect;
-class PageDishDetails;
 
 class MainWindow: public QStackedWidget
 {
@@ -21,25 +20,26 @@ public:
 
 public slots:
     void switchToPageIntro ();
-    void switchToPageTimer ();
-    void switchToPageTimerList ();
+    void switchToPageTimers ();
+    void switchToPageTimerEdit ();
     void switchToPageDishSelect ();
-    void switchToPageDishDetails ();
+    void setCurrentDish (int);
     void leavePageDishSelect ();
-    void leavePageDishDetails ();
+    void previousTimer ();
+    void nextTimer ();
+    void removeTimer (int);
+    void cancelCurrentTimer ();
+    void acceptCurrentTimer (const QString&, const QTime&);
+    void editCurrentTimer ();
+    void previousDish ();
+    void nextDish ();
+    void adjustTimerFromDishDetails (const QTime&, const QString&);
 
 private:
     PageIntro *page_intro;
-    PageTimer *page_timer;
-    PageTimerList *page_timer_list;
+    PageTimers *page_timers;
+    PageTimerEdit *page_timer_edit;
     PageDishSelect *page_dish_select;
-    PageDishDetails *page_dish_details;
-
-    enum DishPredecessorPage {
-	DishPredecessorPageUndefined,
-	DishPredecessorPageTimer,
-	DishPredecessorPageTimerList,
-    } dish_predecessor_page;
 };
 
 #endif

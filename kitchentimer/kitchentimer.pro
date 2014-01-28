@@ -1,7 +1,7 @@
 CONFIG += qt debug
 QT += widgets
 
-DEFINES *= KITCHENTIMER_INTRO_TIMEOUT_MS=1
+DEFINES *= KITCHENTIMER_INTRO_TIMEOUT_MS=1000
 DEFINES *= "KITCHENTIMER_SETTINGS_COMPANY_NAME=\"\\\"Brandy Mint\\\"\""
 DEFINES *= "KITCHENTIMER_SETTINGS_PRODUCT_NAME=\"\\\"Kitchen Timer\\\"\""
 
@@ -11,19 +11,23 @@ DEFINES *= "KITCHENTIMER_SETTINGS_PRODUCT_NAME=\"\\\"Kitchen Timer\\\"\""
 HEADERS += application.h \
            mainwindow.h \
            pageintro.h \
-           pagetimer.h \
-           pagetimerlist.h \
+           pagetimers.h \
+           pagetimeredit.h \
            pagedishselect.h \
-           pagedishdetails.h
+           timer.h \
+           referenceitem.h \
+           referencemodel.h
 
 SOURCES += main.cpp \
            application.cpp \
            mainwindow.cpp \
            pageintro.cpp \
-           pagetimer.cpp \
-           pagetimerlist.cpp \
+           pagetimers.cpp \
+           pagetimeredit.cpp \
            pagedishselect.cpp \
-           pagedishdetails.cpp
+           timer.cpp \
+           referenceitem.cpp \
+           referencemodel.cpp
 
            
 TRANSLATIONS = translations/ru.ts

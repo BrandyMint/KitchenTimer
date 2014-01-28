@@ -24,11 +24,8 @@ protected:
 private slots:
     void skipIntro ();
 
-private:
-    QTimer *skip_intro_timer;
-
 signals:
-    void switchToPageTimer ();
+    void switchToPageTimers ();
 };
 
 #endif
