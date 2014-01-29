@@ -3,8 +3,12 @@
 #ifndef PAGETIMERS_H
 #define PAGETIMERS_H
 
+#include "background.h"
+
 #include <QWidget>
 #include <QLabel>
+#include <QTime>
+#include <QTimer>
 
 QT_BEGIN_NAMESPACE
 class QPushButton;
@@ -14,6 +18,8 @@ class QStackedWidget;
 QT_END_NAMESPACE
 
 class Timer;
+class CustomDial;
+class ClickableLabel;
 
 class TimerLabel: public QLabel
 {
@@ -30,7 +36,7 @@ private:
     Timer *timer;
 };
 
-class PageTimers: public QWidget
+class PageTimers: public Background
 {
     Q_OBJECT
 
@@ -48,6 +54,8 @@ private slots:
     void setVibrosignalEnabled (bool);
     void setSubpageCurrentTimer ();
     void setSubpageTimerList ();
+    void dialValueChanged (int);
+    void currentTimerAdjusted ();
     void timerStartStop ();
     void timerReset ();
     void timerEdit ();
@@ -63,17 +71,22 @@ private:
     QPushButton *next_timer_button;
     QPushButton *goto_timer_button;
     QPushButton *goto_timer_list_button;
+    CustomDial *current_timer_dial;
     QStackedWidget *stacked_widget;
     QWidget *current_timer_subpage;
-    QPushButton *title_button;
-    QPushButton *timeout_button;
+    ClickableLabel *current_timer_title_label;
+    ClickableLabel *current_timer_time_left_label;
     QScrollArea *scroll_area;
     QWidget *scroll_widget;
     QVBoxLayout *scroll_layout;
+    QTime dial_value;
+    QTimer update_timer;
 
 signals:
     void switchToPageTimer ();
     void switchToPageDishSelect ();
+    void stopCurrentTimer ();
+    void setStartCurrentTimer (const QTime&);
     void previousTimer ();
     void nextTimer ();
     void removeTimer (int);

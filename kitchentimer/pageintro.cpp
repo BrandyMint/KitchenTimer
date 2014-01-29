@@ -1,4 +1,5 @@
 #include "pageintro.h"
+#include "application.h"
 
 #include <QPushButton>
 #include <QVBoxLayout>
@@ -9,12 +10,16 @@
 
 
 PageIntro::PageIntro (QWidget *parent)
-    : QWidget (parent)
+    : Background (parent)
 {
     QTimer::singleShot (KITCHENTIMER_INTRO_TIMEOUT_MS, this, SLOT (skipIntro ()));
 
     QVBoxLayout *layout = new QVBoxLayout (this);
-    layout->addWidget (new QLabel ("INTRO PAGE", this));
+    QLabel *intro_label = new QLabel ("SMART<br />KITCHEN<br />TIMER", this);
+    intro_label->setAlignment (Qt::AlignHCenter | Qt::AlignVCenter);
+    intro_label->setFont (app->getIntroFont ());
+    intro_label->setStyleSheet ("QLabel { color : #fcd2a8; }");
+    layout->addWidget (intro_label);
 }
 PageIntro::~PageIntro ()
 {

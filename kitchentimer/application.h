@@ -5,6 +5,7 @@
 
 #include "timer.h"
 #include "referencemodel.h"
+#include "alarmsequencer.h"
 
 #include <QApplication>
 #include <QFont>
@@ -20,6 +21,8 @@ public:
     Application (int&, char**);
     ~Application ();
     QFont &getBaseFont ();
+    QFont &getBigFont ();
+    QFont &getIntroFont ();
     bool getAudioEnabled ();
     bool getVibrosignalEnabled ();
     ReferenceModel &getReferenceModel ();
@@ -33,6 +36,8 @@ public slots:
     void addTimer (Timer*);
     int getCurrentTimerIndex ();
     void setCurrentTimerIndex (int);
+    void runAlarmOnce ();
+    void clearAlarms ();
 
 public:
     QIcon previous_timer_icon;
@@ -49,14 +54,18 @@ public:
     QIcon reference_close_icon;
     QIcon reference_return_icon;
     QIcon reference_search_icon;
+    QImage background_image;
 
 private:
     QFont base_font;
+    QFont big_font;
+    QFont intro_font;
     bool audio_enabled;
     bool vibrosignal_enabled;
     QList<Timer*> timers;
     int current_timer_index;
     ReferenceModel reference_model;
+    AlarmSequencer alarm_sequencer;
 
 signals:
     void valueChangedAudioEnabled (bool);

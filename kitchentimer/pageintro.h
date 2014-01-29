@@ -3,14 +3,14 @@
 #ifndef PAGEINTRO_H
 #define PAGEINTRO_H
 
-#include <QWidget>
+#include "background.h"
 
 QT_BEGIN_NAMESPACE
 class QMouseEvent;
 class QTimer;
 QT_END_NAMESPACE
 
-class PageIntro: public QWidget
+class PageIntro: public Background
 {
     Q_OBJECT
 

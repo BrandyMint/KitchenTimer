@@ -21,11 +21,14 @@ Application::Application (int &argc, char **argv)
       reference_close_icon (":/images/reference-close.png"),
       reference_return_icon (":/images/reference-return.png"),
       reference_search_icon (":/images/reference-search.png"),
+      background_image (":/images/background-v1.png"),
       current_timer_index (-1)
 {
     QFontDatabase::addApplicationFont (":/fonts/Cartonsix NC.ttf");
 
     base_font = QFont ("CartonsixNC", 17);
+    big_font = QFont ("CartonsixNC", 26);
+    intro_font = QFont ("CartonsixNC", 54);
 
     setFont (base_font);
 
@@ -44,6 +47,11 @@ Application::Application (int &argc, char **argv)
 	timers.append (new_timer);
     }
     settings.endArray();
+    if (!timers.count ()) {
+	Timer *new_timer = new Timer (QTime (0, 5, 0), QTime (0, 5, 0), "Default timer");
+	timers.append (new_timer);
+	current_timer_index = 0;
+    }
 
     QFile file (":/reference/reference.txt");
     file.open (QIODevice::ReadOnly);
@@ -73,6 +81,14 @@ Application::~Application ()
 QFont &Application::getBaseFont ()
 {
     return base_font;
+}
+QFont &Application::getBigFont ()
+{
+    return big_font;
+}
+QFont &Application::getIntroFont ()
+{
+    return intro_font;
 }
 bool Application::getAudioEnabled ()
 {
@@ -122,4 +138,12 @@ int Application::getCurrentTimerIndex ()
 void Application::setCurrentTimerIndex (int new_current_timer_index)
 {
     current_timer_index = new_current_timer_index;
+}
+void Application::runAlarmOnce ()
+{
+    alarm_sequencer.runSingleAlarm ();
+}
+void Application::clearAlarms ()
+{
+    alarm_sequencer.enqueueClearAlarms ();
 }

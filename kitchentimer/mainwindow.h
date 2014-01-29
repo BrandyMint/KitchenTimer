@@ -31,6 +31,8 @@ public slots:
     void cancelCurrentTimer ();
     void acceptCurrentTimer (const QString&, const QTime&);
     void editCurrentTimer ();
+    void stopCurrentTimer ();
+    void setStartCurrentTimer (const QTime&);
     void previousDish ();
     void nextDish ();
     void adjustTimerFromDishDetails (const QTime&, const QString&);

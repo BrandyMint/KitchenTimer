@@ -24,6 +24,8 @@ MainWindow::MainWindow ()
     connect (page_timers, SIGNAL (nextTimer ()), this, SLOT (nextTimer ()));
     connect (page_timers, SIGNAL (removeTimer (int)), this, SLOT (removeTimer (int)));
     connect (page_timers, SIGNAL (editCurrentTimer ()), this, SLOT (editCurrentTimer ()));
+    connect (page_timers, SIGNAL (stopCurrentTimer ()), this, SLOT (stopCurrentTimer ()));
+    connect (page_timers, SIGNAL (setStartCurrentTimer (const QTime&)), this, SLOT (setStartCurrentTimer (const QTime&)));
     connect (page_timer_edit, SIGNAL (cancel ()), this, SLOT (cancelCurrentTimer ()));
     connect (page_timer_edit, SIGNAL (accept (const QString&, const QTime&)), this, SLOT (acceptCurrentTimer (const QString&, const QTime&)));
     connect (page_dish_select, SIGNAL (setCurrentDish (int)), this, SLOT (setCurrentDish (int)));
@@ -94,6 +96,27 @@ void MainWindow::editCurrentTimer ()
 {
     page_timer_edit->updateContent ();
     setCurrentWidget (page_timer_edit);
+}
+void MainWindow::stopCurrentTimer ()
+{
+    QList<Timer*> &timers = app->getTimers ();
+    int current_timer_index = app->getCurrentTimerIndex ();
+    if ((current_timer_index >= 0) && (current_timer_index < timers.count ())) {
+	Timer *timer = timers.at (current_timer_index);
+	timer->stop ();
+    }
+}
+void MainWindow::setStartCurrentTimer (const QTime &new_period)
+{
+    QList<Timer*> &timers = app->getTimers ();
+    int current_timer_index = app->getCurrentTimerIndex ();
+    if ((current_timer_index >= 0) && (current_timer_index < timers.count ())) {
+	Timer *timer = timers.at (current_timer_index);
+	timer->stop ();
+	timer->setPeriod (new_period);
+	timer->setTimeLeft (new_period);
+	timer->start ();
+    }
 }
 void MainWindow::cancelCurrentTimer ()
 {

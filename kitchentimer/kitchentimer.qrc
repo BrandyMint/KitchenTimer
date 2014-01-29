@@ -1,6 +1,6 @@
 <!DOCTYPE RCC><RCC version="1.0">
   <qresource prefix="/">
-    <file>images/background.png</file>
+    <file>images/background-v1.png</file>
     <file>images/previous-timer.png</file>
     <file>images/next-timer.png</file>
     <file>images/previous-dish.png</file>
@@ -17,6 +17,8 @@
     <file>images/reference-search.png</file>
 
     <file>fonts/Cartonsix NC.ttf</file>
+
+    <file>audio/alarm.pcm</file>
 
     <file>translations/ru.qm</file>
 

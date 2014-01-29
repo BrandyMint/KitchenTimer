@@ -1,5 +1,5 @@
-CONFIG += qt debug
-QT += widgets
+CONFIG += qt debug qt
+QT += widgets multimedia
 
 DEFINES *= KITCHENTIMER_INTRO_TIMEOUT_MS=1000
 DEFINES *= "KITCHENTIMER_SETTINGS_COMPANY_NAME=\"\\\"Brandy Mint\\\"\""
@@ -16,7 +16,11 @@ HEADERS += application.h \
            pagedishselect.h \
            timer.h \
            referenceitem.h \
-           referencemodel.h
+           referencemodel.h \
+           customdial.h \
+           clickablelabel.h \
+           background.h \
+           alarmsequencer.h
 
 SOURCES += main.cpp \
            application.cpp \
@@ -27,7 +31,11 @@ SOURCES += main.cpp \
            pagedishselect.cpp \
            timer.cpp \
            referenceitem.cpp \
-           referencemodel.cpp
+           referencemodel.cpp \
+           customdial.cpp \
+           clickablelabel.cpp \
+           background.cpp \
+           alarmsequencer.cpp
 
            
 TRANSLATIONS = translations/ru.ts
@@ -38,7 +46,9 @@ lupdate.depends = $$SOURCES $$HEADERS $$FORMS $$TRANSLATIONS
 lrelease.commands = $$[QT_INSTALL_BINS]/lrelease kitchentimer.pro
 lupdate.depends = $$TRANSLATIONS
 
-QMAKE_EXTRA_TARGETS += lupdate lrelease
+build_android.commands = make && make install INSTALL_ROOT=./android_build/ && $$[QT_INSTALL_BINS]/androiddeployqt --output ./android_build/
+
+QMAKE_EXTRA_TARGETS += lupdate lrelease build_android
 
 RESOURCES += kitchentimer.qrc
 
