@@ -12,9 +12,9 @@ Installation on Android
 2. Install JDK (Java Development Kit)
 
 3. Setup environment variables:
-   1) Setup ANDROID_HOME variable
-   2) Setup JAVA_HOME variable
-   3) Setup PATH variable as following:
+   1. Setup ANDROID_HOME variable
+   2. Setup JAVA_HOME variable
+   3. Setup PATH variable as following:
 ```
 export $PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/platform-toos:$JAVA_HOME/bin
 ```
