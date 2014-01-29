@@ -15,23 +15,23 @@ Installation on Android
    1. Setup ANDROID_HOME variable
    2. Setup JAVA_HOME variable
    3. Setup PATH variable as following:
-```
-export $PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/platform-toos:$JAVA_HOME/bin
-```
+      ```
+      export $PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/platform-toos:$JAVA_HOME/bin
+      ```
 
 4. Build Qt locally:
-```
-http://download.qt-project.org/official_releases/qt/5.2/5.2.0/single/qt-everywhere-opensource-src-5.2.0.tar.xz
-tar xf qt-everywhere-opensource-src-5.2.0.tar.xz
-./configure -no-pch -opensource -confirm-license \
-  -android-ndk /opt/android-ndk-r9c \
-  -android-sdk /opt/android-sdk-linux \
-  -xplatform android-g++ \
-  -no-warnings-are-errors \
-  -nomake tests -nomake examples \
-  -skip qtwebkit -skip qtserialport -skip qtwebkit-examples
-make
-```
+   ```
+   http://download.qt-project.org/official_releases/qt/5.2/5.2.0/single/qt-everywhere-opensource-src-5.2.0.tar.xz
+   tar xf qt-everywhere-opensource-src-5.2.0.tar.xz
+   ./configure -no-pch -opensource -confirm-license \
+     -android-ndk /opt/android-ndk-r9c \
+     -android-sdk /opt/android-sdk-linux \
+     -xplatform android-g++ \
+     -no-warnings-are-errors \
+     -nomake tests -nomake examples \
+     -skip qtwebkit -skip qtserialport -skip qtwebkit-examples
+   make
+   ```
 
 5. Setup environment variables:
    Make $USER_QT_BUILD_DIR variable point to user Qt build
