@@ -5,9 +5,6 @@ DEFINES *= KITCHENTIMER_INTRO_TIMEOUT_MS=1000
 DEFINES *= "KITCHENTIMER_SETTINGS_COMPANY_NAME=\"\\\"Brandy Mint\\\"\""
 DEFINES *= "KITCHENTIMER_SETTINGS_PRODUCT_NAME=\"\\\"Kitchen Timer\\\"\""
 
-
-# DEFINES *= KITCHENTIMER_INTRO_TIMEOUT_MS=1000
-
 HEADERS += application.h \
            mainwindow.h \
            pageintro.h \
@@ -17,10 +14,12 @@ HEADERS += application.h \
            timer.h \
            referenceitem.h \
            referencemodel.h \
-           customdial.h \
-           clickablelabel.h \
-           background.h \
-           alarmsequencer.h
+           alarmsequencer.h \
+           widgets/customdial.h \
+           widgets/analogtimer.h \
+           widgets/clickablelabel.h \
+           widgets/digitaltimer.h \
+           widgets/background.h
 
 SOURCES += main.cpp \
            application.cpp \
@@ -32,10 +31,12 @@ SOURCES += main.cpp \
            timer.cpp \
            referenceitem.cpp \
            referencemodel.cpp \
-           customdial.cpp \
-           clickablelabel.cpp \
-           background.cpp \
-           alarmsequencer.cpp
+           alarmsequencer.cpp \
+           widgets/customdial.cpp \
+           widgets/analogtimer.cpp \
+           widgets/clickablelabel.cpp \
+           widgets/digitaltimer.cpp \
+           widgets/background.cpp
 
            
 TRANSLATIONS = translations/ru.ts
@@ -46,11 +47,14 @@ lupdate.depends = $$SOURCES $$HEADERS $$FORMS $$TRANSLATIONS
 lrelease.commands = $$[QT_INSTALL_BINS]/lrelease kitchentimer.pro
 lupdate.depends = $$TRANSLATIONS
 
-build_android.commands = make && make install INSTALL_ROOT=./android_build/ && $$[QT_INSTALL_BINS]/androiddeployqt --output ./android_build/
+android_build.commands = make && make install INSTALL_ROOT=./android_build/ && $$[QT_INSTALL_BINS]/androiddeployqt --output ./android_build/
+android_install.commands = adb install android_build/bin/QtApp-debug.apk
+android_uninstall.commands = adb uninstall org.qtproject.example.kitchentimer
+android_reinstall.commands = adb install -r android_build/bin/QtApp-debug.apk
 
-QMAKE_EXTRA_TARGETS += lupdate lrelease build_android
+QMAKE_EXTRA_TARGETS += lupdate lrelease android_build android_install android_uninstall android_reinstall
 
-RESOURCES += kitchentimer.qrc
+RESOURCES += resources/kitchentimer.qrc
 
 MOC_DIR = .moc
 OBJECTS_DIR = .obj

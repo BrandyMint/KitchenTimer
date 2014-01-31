@@ -3,7 +3,6 @@
 #include <QtCore/qmath.h>
 
 #include "clickablelabel.h"
-#include "application.h"
 
 ClickableLabel::ClickableLabel (QWidget *parent)
     : QLabel (parent)
@@ -24,18 +23,14 @@ void ClickableLabel::mouseMoveEvent (QMouseEvent *event)
 }
 void ClickableLabel::mousePressEvent (QMouseEvent *event)
 {
-    // if (event->button () == Qt::LeftButton) {
-    // 	QPoint start_point;
-    // 	QSize circle_size;
-    // 	getValuableGeometry (start_point, circle_size);
-    // 	QPoint current_pos = event->pos () - start_point;
-    // 	setValueByPos (current_pos, circle_size);
-    // 	setSliderDown (true);
-    // }
+    if (event->button () == Qt::LeftButton) {
+	emit pressed ();
+    }
 }
 void ClickableLabel::mouseReleaseEvent (QMouseEvent *event)
 {
-    // if (event->button () == Qt::LeftButton) {
-    // 	setSliderDown (false);
-    // }
+    if (event->button () == Qt::LeftButton) {
+	emit released ();
+	emit clicked ();
+    }
 }

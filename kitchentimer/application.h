@@ -20,9 +20,6 @@ class Application: public QApplication
 public:
     Application (int&, char**);
     ~Application ();
-    QFont &getBaseFont ();
-    QFont &getBigFont ();
-    QFont &getIntroFont ();
     bool getAudioEnabled ();
     bool getVibrosignalEnabled ();
     ReferenceModel &getReferenceModel ();
@@ -35,6 +32,7 @@ public slots:
     QList<Timer*> &getTimers ();
     void addTimer (Timer*);
     int getCurrentTimerIndex ();
+    Timer *getCurrentTimer ();
     void setCurrentTimerIndex (int);
     void runAlarmOnce ();
     void clearAlarms ();
@@ -57,9 +55,6 @@ public:
     QImage background_image;
 
 private:
-    QFont base_font;
-    QFont big_font;
-    QFont intro_font;
     bool audio_enabled;
     bool vibrosignal_enabled;
     QList<Timer*> timers;

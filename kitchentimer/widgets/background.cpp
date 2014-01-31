@@ -8,11 +8,24 @@
 #include <QLineEdit>
 #include <QTimer>
 #include <QPainter>
+#include <QMouseEvent>
 
 
 Background::Background (QWidget *parent)
-    : QWidget (parent)
+    : QWidget (parent), shaded (false)
 {
+}
+void Background::mousePressEvent (QMouseEvent *event)
+{
+    if (event->button () == Qt::LeftButton) {
+	emit pressed ();
+    }
+}
+void Background::mouseReleaseEvent (QMouseEvent *event)
+{
+    if (event->button () == Qt::LeftButton) {
+	emit released ();
+    }
 }
 void Background::paintEvent (QPaintEvent*)
 {
@@ -37,4 +50,14 @@ void Background::paintEvent (QPaintEvent*)
     }
     
     p.drawImage (dst_rect, app->background_image, src_rect);
+    if (shaded) {
+	p.setPen (Qt::NoPen);
+	p.setBrush (QColor (0, 0, 0, 192));
+	p.drawRect (dst_rect);
+    }
+}
+void Background::setShaded (bool new_shaded)
+{
+    shaded = new_shaded;
+    update ();
 }

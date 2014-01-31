@@ -15,9 +15,19 @@ class Background: public QWidget
 
 public:
     Background (QWidget*);
+    void setShaded (bool);
 
 protected:
+    void mousePressEvent (QMouseEvent*);
+    void mouseReleaseEvent (QMouseEvent*);
     void paintEvent (QPaintEvent*);
+
+private:
+    bool shaded;
+
+signals:
+    void pressed ();
+    void released ();
 };
 
 #endif

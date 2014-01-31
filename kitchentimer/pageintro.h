@@ -3,7 +3,7 @@
 #ifndef PAGEINTRO_H
 #define PAGEINTRO_H
 
-#include "background.h"
+#include "widgets/background.h"
 
 QT_BEGIN_NAMESPACE
 class QMouseEvent;
@@ -23,6 +23,9 @@ protected:
 
 private slots:
     void skipIntro ();
+
+private:
+    QFont font;
 
 signals:
     void switchToPageTimers ();

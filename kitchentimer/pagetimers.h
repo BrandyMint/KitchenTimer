@@ -3,7 +3,7 @@
 #ifndef PAGETIMERS_H
 #define PAGETIMERS_H
 
-#include "background.h"
+#include "widgets/background.h"
 
 #include <QWidget>
 #include <QLabel>
@@ -18,8 +18,9 @@ class QStackedWidget;
 QT_END_NAMESPACE
 
 class Timer;
-class CustomDial;
+class AnalogTimer;
 class ClickableLabel;
+class DigitalTimer;
 
 class TimerLabel: public QLabel
 {
@@ -55,6 +56,7 @@ private slots:
     void setSubpageCurrentTimer ();
     void setSubpageTimerList ();
     void dialValueChanged (int);
+    void analogTimeChanged (const QTime&);
     void currentTimerAdjusted ();
     void timerStartStop ();
     void timerReset ();
@@ -63,6 +65,11 @@ private slots:
     void timerRemove ();
     void timerMove ();
     void timerBookmark ();
+    void clearCurrentAlarms ();
+    void switchEditMode (bool);
+    void restoreLeaveEditMode ();
+    void enterEditMode ();
+    void leaveEditMode ();
 
 private:
     QPushButton *toggle_audio_button;
@@ -71,16 +78,20 @@ private:
     QPushButton *next_timer_button;
     QPushButton *goto_timer_button;
     QPushButton *goto_timer_list_button;
-    CustomDial *current_timer_dial;
+    AnalogTimer *analog_timer;
     QStackedWidget *stacked_widget;
     QWidget *current_timer_subpage;
     ClickableLabel *current_timer_title_label;
-    ClickableLabel *current_timer_time_left_label;
+    DigitalTimer *digital_timer;
     QScrollArea *scroll_area;
     QWidget *scroll_widget;
     QVBoxLayout *scroll_layout;
     QTime dial_value;
     QTimer update_timer;
+    QTime saved_period_value;
+    QTime saved_time_left_value;
+    bool saved_running_state;
+    bool edit_mode;
 
 signals:
     void switchToPageTimer ();

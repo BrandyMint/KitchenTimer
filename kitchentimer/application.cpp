@@ -24,13 +24,9 @@ Application::Application (int &argc, char **argv)
       background_image (":/images/background-v1.png"),
       current_timer_index (-1)
 {
-    QFontDatabase::addApplicationFont (":/fonts/Cartonsix NC.ttf");
-
-    base_font = QFont ("CartonsixNC", 17);
-    big_font = QFont ("CartonsixNC", 26);
-    intro_font = QFont ("CartonsixNC", 54);
-
-    setFont (base_font);
+    int font_id = QFontDatabase::addApplicationFont (":/fonts/Cartonsix NC.ttf");
+    QString font_family = QFontDatabase::applicationFontFamilies (font_id).at (0);
+    setFont (QFont (font_family, 17));
 
     QSettings settings (KITCHENTIMER_SETTINGS_COMPANY_NAME, KITCHENTIMER_SETTINGS_PRODUCT_NAME);
     settings.beginGroup ("General");
@@ -78,18 +74,6 @@ Application::~Application ()
     }
     settings.endArray ();
 }
-QFont &Application::getBaseFont ()
-{
-    return base_font;
-}
-QFont &Application::getBigFont ()
-{
-    return big_font;
-}
-QFont &Application::getIntroFont ()
-{
-    return intro_font;
-}
 bool Application::getAudioEnabled ()
 {
     return audio_enabled;
@@ -134,6 +118,19 @@ void Application::addTimer (Timer *new_timer)
 int Application::getCurrentTimerIndex ()
 {
     return current_timer_index;
+}
+Timer *Application::getCurrentTimer ()
+{
+    QList<Timer*> &timers = app->getTimers ();
+    int current_timer_index = app->getCurrentTimerIndex ();
+    if (!timers.size ()) {
+	Timer *new_timer = new Timer (QTime (0, 5, 0), QTime (0, 5, 0), "Default timer");
+	timers.append (new_timer);
+	current_timer_index = 0;
+    } else if (current_timer_index < 0 || current_timer_index >= timers.size ()) {
+	current_timer_index = 0;
+    }
+    return timers[current_timer_index];
 }
 void Application::setCurrentTimerIndex (int new_current_timer_index)
 {

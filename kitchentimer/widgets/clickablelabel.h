@@ -15,5 +15,10 @@ protected:
     void mouseMoveEvent (QMouseEvent*);
     void mousePressEvent (QMouseEvent*);
     void mouseReleaseEvent (QMouseEvent*);
+
+signals:
+    void pressed ();
+    void released ();
+    void clicked ();
 };
 #endif

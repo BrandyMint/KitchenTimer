@@ -1,7 +1,8 @@
 #include "pagetimers.h"
 #include "application.h"
-#include "customdial.h"
-#include "clickablelabel.h"
+#include "widgets/analogtimer.h"
+#include "widgets/digitaltimer.h"
+#include "widgets/clickablelabel.h"
 
 #include <QPushButton>
 #include <QVBoxLayout>
@@ -13,8 +14,6 @@
 #include <QStackedWidget>
 #include <QDial>
 #include <QMessageBox>
-
-#include <stdio.h>
 
 
 TimerLabel::TimerLabel (QWidget *parent, Timer *timer)
@@ -37,7 +36,7 @@ void TimerLabel::timeout ()
 
 
 PageTimers::PageTimers (QWidget *parent)
-    : Background (parent)
+    : Background (parent), edit_mode (false)
 {
     QVBoxLayout *layout = new QVBoxLayout (this);
 
@@ -87,16 +86,23 @@ PageTimers::PageTimers (QWidget *parent)
 	QVBoxLayout *subpage_layout = new QVBoxLayout (current_timer_subpage);
 	subpage_layout->addStretch (1);
 	{
+	    digital_timer = new DigitalTimer (current_timer_subpage);
+	    connect (digital_timer, SIGNAL (enterEditModeRequested ()), this, SLOT (enterEditMode ()));
+	    subpage_layout->addWidget (digital_timer);
+	}
+
+	{
 	    QHBoxLayout *hlayout = new QHBoxLayout ();
 	    previous_timer_button = new QPushButton (app->previous_timer_icon, "", current_timer_subpage);
 	    connect (previous_timer_button, SIGNAL (clicked ()), this, SIGNAL (previousTimer ()));
 	    hlayout->addWidget (previous_timer_button);
 	    hlayout->addStretch (1);
-	    current_timer_dial = new CustomDial (current_timer_subpage);
-	    connect (current_timer_dial, SIGNAL (valueChanged (int)), this, SLOT (dialValueChanged (int)));
-	    connect (current_timer_dial, SIGNAL (sliderPressed ()), this, SIGNAL (stopCurrentTimer ()));
-	    connect (current_timer_dial, SIGNAL (sliderReleased ()), this, SLOT (currentTimerAdjusted ()));
-	    hlayout->addWidget (current_timer_dial, 40);
+	    analog_timer = new AnalogTimer (current_timer_subpage);
+	    connect (analog_timer, SIGNAL (timeChanged (const QTime&)), this, SLOT (analogTimeChanged (const QTime&)));
+	    connect (analog_timer, SIGNAL (clearAlarms ()), this, SLOT (clearCurrentAlarms ()));
+	    connect (analog_timer, SIGNAL (enterEditModeRequested ()), this, SLOT (enterEditMode ()));
+	    connect (analog_timer, SIGNAL (leaveEditModeRequested ()), this, SLOT (leaveEditMode ()));
+	    hlayout->addWidget (analog_timer, 40);
 	    next_timer_button = new QPushButton (app->next_timer_icon, "", current_timer_subpage);
 	    connect (next_timer_button, SIGNAL (clicked ()), this, SIGNAL (nextTimer ()));
 	    hlayout->addWidget (next_timer_button);
@@ -113,13 +119,9 @@ PageTimers::PageTimers (QWidget *parent)
 	    current_timer_title_label->setStyleSheet ("QLabel { color : #fcd2a8; }");
 	    current_timer_title_label->setAlignment (Qt::AlignHCenter | Qt::AlignVCenter);
 	    subpage_layout->addWidget (current_timer_title_label);
-	}
-	{
-	    current_timer_time_left_label = new ClickableLabel (current_timer_subpage);
-	    current_timer_time_left_label->setFont (app->getBigFont ());
-	    current_timer_time_left_label->setStyleSheet ("QLabel { color : #fffffd; }");
-	    current_timer_time_left_label->setAlignment (Qt::AlignHCenter | Qt::AlignVCenter);
-	    subpage_layout->addWidget (current_timer_time_left_label);
+#if 1 // Temporarily hide
+	    current_timer_title_label->hide ();
+#endif
 	}
 
 	subpage_layout->addStretch (1);
@@ -156,6 +158,7 @@ PageTimers::PageTimers (QWidget *parent)
     
     connect (app, SIGNAL (valueChangedAudioEnabled (bool)), this, SLOT (setAudioEnabled (bool)));
     connect (app, SIGNAL (valueChangedVibrosignalEnabled (bool)), this, SLOT (setVibrosignalEnabled (bool)));
+    connect (this, SIGNAL (pressed ()), this, SLOT (leaveEditMode ()));
 
     updateContent ();
     setSubpageCurrentTimer ();
@@ -170,18 +173,15 @@ PageTimers::~PageTimers ()
 }
 void PageTimers::updateContentSubpageCurrentTimer ()
 {
-    QList<Timer*> &timers = app->getTimers ();
-    int current_timer_index = app->getCurrentTimerIndex ();
-    if (!timers.size () || current_timer_index < 0 || current_timer_index >= timers.size ()) {
-	return;
-    }
-    if (!current_timer_dial->isSliderDown ()) {
-	Timer *current_timer = timers[current_timer_index];
+    if (!analog_timer->isSliderDown ()) {
+	Timer *current_timer = app->getCurrentTimer ();
+	QList<Timer*> &timers = app->getTimers ();
+	int current_timer_index = app->getCurrentTimerIndex ();
 	current_timer_title_label->setText (current_timer->getTitle ());
-	current_timer_time_left_label->setText (current_timer->getTimeLeft ().toString ());
+	digital_timer->setTime (current_timer->getTimeLeft ());
 	previous_timer_button->setEnabled (current_timer_index > 0);
 	next_timer_button->setEnabled (current_timer_index < (timers.count () - 1));
-	current_timer_dial->setValue (QTime (0, 0, 0).secsTo (current_timer->getTimeLeft ()));
+	analog_timer->setTime (current_timer->getTimeLeft ());
     }
 }
 void PageTimers::updateContentSubpageTimerList ()
@@ -268,21 +268,22 @@ void PageTimers::setSubpageTimerList ()
 }
 void PageTimers::dialValueChanged (int new_period_sec)
 {
-    if (current_timer_dial->isSliderDown ()) {
-	app->clearAlarms ();
-    }
-    QList<Timer*> &timers = app->getTimers ();
-    int current_timer_index = app->getCurrentTimerIndex ();
-    if (!timers.size () || current_timer_index < 0 || current_timer_index >= timers.size ()) {
-	return;
-    }
-    Timer *current_timer = timers[current_timer_index];
     dial_value = QTime (0, 0, 0).addSecs (new_period_sec);
-    current_timer_time_left_label->setText (dial_value.toString ("hh:mm:ss"));
+    Timer *current_timer = app->getCurrentTimer ();
+    digital_timer->setTime (dial_value);
+}
+void PageTimers::analogTimeChanged (const QTime &new_time)
+{
+    dial_value = new_time;
+    digital_timer->setTime (dial_value);
+    currentTimerAdjusted ();
 }
 void PageTimers::currentTimerAdjusted ()
 {
-    emit setStartCurrentTimer (dial_value);
+    // emit setStartCurrentTimer (dial_value);
+    Timer *current_timer = app->getCurrentTimer ();
+    current_timer->setPeriod (dial_value);
+    current_timer->setTimeLeft (dial_value);
 }
 void PageTimers::timerStartStop ()
 {
@@ -326,4 +327,45 @@ void PageTimers::timerBookmark ()
 {
     QList<Timer*> &timers = app->getTimers ();
     Timer *timer = timers[sender ()->property ("timer_index").toInt ()];
+}
+void PageTimers::clearCurrentAlarms ()
+{
+    app->clearAlarms ();
+}
+void PageTimers::switchEditMode (bool new_edit_mode)
+{
+    edit_mode = new_edit_mode;
+    app->clearAlarms ();
+    analog_timer->setEditMode (new_edit_mode);
+    digital_timer->setEditMode (new_edit_mode);
+    setShaded (new_edit_mode);
+
+    Timer *current_timer = app->getCurrentTimer ();
+    if (new_edit_mode) {
+	saved_period_value = current_timer->getPeriod ();
+	saved_time_left_value = current_timer->getTimeLeft ();
+	saved_running_state = current_timer->isRunning ();
+	current_timer->stop ();
+    } else {
+	// if (saved_running_state)
+	current_timer->start ();
+    }
+}
+void PageTimers::restoreLeaveEditMode ()
+{
+    Timer *current_timer = app->getCurrentTimer ();
+    current_timer->setPeriod (saved_period_value);
+    current_timer->setTimeLeft (saved_time_left_value);
+    switchEditMode (false);
+}
+void PageTimers::enterEditMode ()
+{
+    stopCurrentTimer ();
+    if (!edit_mode)
+	switchEditMode (true);
+}
+void PageTimers::leaveEditMode ()
+{
+    if (edit_mode)
+	switchEditMode (false);
 }

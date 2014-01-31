@@ -12,7 +12,7 @@ AlarmEvent::AlarmEvent ()
     source_file.open (QIODevice::ReadOnly);
 
     QAudioFormat format;
-    // Set up the format, eg.
+
     format.setSampleRate (44100);
     format.setChannelCount (2);
     format.setSampleSize (16);
