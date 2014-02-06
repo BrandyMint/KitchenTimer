@@ -1,19 +1,16 @@
 #include "background.h"
-#include "application.h"
+#include "resourcemanager.h"
 
-#include <QPushButton>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QLineEdit>
-#include <QTimer>
 #include <QPainter>
 #include <QMouseEvent>
 
 
 Background::Background (QWidget *parent)
-    : QWidget (parent), shaded (false)
+    : QWidget (parent), transition_timeout (0), shaded (false)
 {
+    elapsed_timer.invalidate ();
+    repaint_timer.setSingleShot (true);
+    connect (&repaint_timer, SIGNAL (timeout ()), this, SLOT (checkUpdate ()));
 }
 void Background::mousePressEvent (QMouseEvent *event)
 {
@@ -31,8 +28,8 @@ void Background::paintEvent (QPaintEvent*)
 {
     QPainter p (this);
     p.setRenderHint (QPainter::SmoothPixmapTransform, true);
-    QRect src_rect = app->background_image.rect ();
-    QRect dst_rect = rect ();
+    QRect src_rect = resource_manager->background_image.rect ();
+    const QRect &dst_rect = rect ();
     int src_w = src_rect.width ();
     int src_h = src_rect.height ();
     int dst_w = dst_rect.width ();
@@ -49,15 +46,68 @@ void Background::paintEvent (QPaintEvent*)
 	src_rect.setHeight (src_w/dst_aspect);
     }
     
-    p.drawImage (dst_rect, app->background_image, src_rect);
+    p.drawImage (dst_rect, resource_manager->background_image, src_rect);
     if (shaded) {
 	p.setPen (Qt::NoPen);
-	p.setBrush (QColor (0, 0, 0, 192));
+	if (elapsed_timer.isValid ()) {
+	    int elapsed = elapsed_timer.elapsed ();
+	    if (elapsed >= transition_timeout) {
+		elapsed_timer.invalidate ();
+		p.setBrush (QColor (0, 0, 0, 192));
+	    } else {
+		double m = double (elapsed)/transition_timeout;
+		p.setBrush (QColor (0, 0, 0, int (m*192)));
+	    }
+	} else {
+	    p.setBrush (QColor (0, 0, 0, 192));
+	}
 	p.drawRect (dst_rect);
+    } else {
+	if (elapsed_timer.isValid ()) {
+	    int elapsed = elapsed_timer.elapsed ();
+	    if (elapsed >= transition_timeout) {
+		elapsed_timer.invalidate ();
+	    } else {
+		double m = 1.0 - double (elapsed)/transition_timeout;
+		p.setPen (Qt::NoPen);
+		p.setBrush (QColor (0, 0, 0, int (m*192)));
+		p.drawRect (dst_rect);
+	    }
+	}
     }
 }
 void Background::setShaded (bool new_shaded)
 {
     shaded = new_shaded;
+    elapsed_timer.invalidate ();
     update ();
+}
+void Background::startShading (int new_transition_timeout)
+{
+    transition_timeout = new_transition_timeout;
+    elapsed_timer.start ();
+    repaint_timer.start (KITCHENTIMER_ANIMATION_REPAINT_TIMEOUT_MS);
+    shaded = true;
+    update ();
+}
+void Background::startUnshading (int new_transition_timeout)
+{
+    transition_timeout = new_transition_timeout;
+    elapsed_timer.start ();
+    shaded = false;
+    update ();
+}
+void Background::checkUpdate ()
+{
+    repaint ();
+    if (elapsed_timer.isValid () && (elapsed_timer.elapsed () < transition_timeout)) {
+	repaint_timer.start (KITCHENTIMER_ANIMATION_REPAINT_TIMEOUT_MS);
+    } else {
+	elapsed_timer.invalidate ();
+	if (shaded)
+	    emit shadingDone ();
+	else
+	    emit unshadingDone ();
+	update ();
+    }
 }

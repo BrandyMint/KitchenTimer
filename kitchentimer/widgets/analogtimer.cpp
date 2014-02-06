@@ -2,11 +2,13 @@
 #include <QMouseEvent>
 #include <QtCore/qmath.h>
 #include <QApplication>
+#include <QTimer>
 
 #include "analogtimer.h"
 
 #define MAX_TIME (QTime (5, 59, 0))
 #define MAX_SEC ((6*60 - 1)*60)
+
 
 static QRectF getScaledRect (const QRectF &input_rect, double scale_factor)
 {
@@ -48,17 +50,62 @@ static double shortestRotation (double r1, double r2, bool &clock_wise)
 }
 
 AnalogTimer::AnalogTimer (QWidget *parent)
-    : QWidget (parent), edit_mode (false), time_value (0, 0, 0), pressed (false)
+    : QWidget (parent),
+      edit_mode (false),
+      edit_blocked (false),
+      time_value (0, 0, 0),
+      down (false),
+      pressed_time (0, 0, 0),
+      pressed_local_rotation (0.0),
+      previous_delta_rotation (0.0),
+      halted (false),
+      halted_by_timeout (false),
+      unhalt_by_timeout_time (0, 0, 0),
+      unhalt_by_timeout_local_rotation (0.0),
+      estimated_circle_rect (0, 0, 0, 0),
+      estimated_circle_center (0.0, 0.0),
+      estimated_circle_radius (0.0)
 {
-    setMinimumSize (QSize (60, 60));
 }
 AnalogTimer::~AnalogTimer ()
 {
 }
-void AnalogTimer::setEditMode (bool new_edit_mode)
+void AnalogTimer::enterEditMode (int unblock_timeout)
 {
-    if (edit_mode != new_edit_mode)
-	edit_mode = new_edit_mode;
+    edit_mode = true;
+    if (unblock_timeout > 0) {
+	edit_blocked = true;
+	QTimer::singleShot (unblock_timeout, this, SLOT (unblockEdit ()));
+    } else {
+	edit_blocked = false;
+    }
+    update ();
+}
+void AnalogTimer::enterEditModePressed (int unblock_timeout, int unhalt_timeout)
+{
+    edit_mode = true;
+    if (unblock_timeout > 0) {
+	edit_blocked = true;
+	QTimer::singleShot (unblock_timeout, this, SLOT (unblockEdit ()));
+	down = true;
+	pressed_time = time_value;
+	pressed_local_rotation = 0.0;
+	previous_delta_rotation = 0.0;
+	halted = true;
+	halted_by_timeout = true;
+	QTimer::singleShot (unhalt_timeout, this, SLOT (unhaltByTimeoutEdit ()));
+    } else {
+	edit_blocked = false;
+    }
+    update ();
+}
+void AnalogTimer::leaveEditMode ()
+{
+    if (edit_mode != false) {
+	edit_mode = false;
+	edit_blocked = false;
+	update ();
+    }
 }
 QTime AnalogTimer::getTime ()
 {
@@ -75,7 +122,7 @@ void AnalogTimer::setTime (const QTime &new_time)
 }
 bool AnalogTimer::isSliderDown ()
 {
-    return pressed;
+    return down;
 }
 void AnalogTimer::getValuableGeometry (QPoint &start_point, QSize &circle_size)
 {
@@ -95,28 +142,79 @@ double AnalogTimer::getRotationByPos (const QPoint &point_pos, const QSize &circ
     QPoint rel_pos = point_pos - QPoint (circle_size.width () >> 1, circle_size.height () >> 1);
     return 0.5 - qAtan2 (rel_pos.x (), rel_pos.y ())*0.1591549430919;
 }
+void AnalogTimer::unblockEdit ()
+{
+    edit_blocked = false;
+}
+void AnalogTimer::unhaltByTimeoutEdit ()
+{
+    pressed_time = unhalt_by_timeout_time;
+    pressed_local_rotation = unhalt_by_timeout_local_rotation;
+    previous_delta_rotation = 0.0;
+    if (down && (halted && halted_by_timeout)) {
+	halted = false;
+	halted_by_timeout = false;
+	emit pressed ();
+	update ();
+    } else {
+	halted = false;
+	halted_by_timeout = false;
+    }
+}
+void AnalogTimer::resizeEvent (QResizeEvent*)
+{
+    QPoint start_point (0, 0);
+    QSize circle_size (size ());
+    if (circle_size.width () > circle_size.height ()) {
+	start_point.setX ((circle_size.width () - circle_size.height ()) >> 1);
+	circle_size.setWidth (circle_size.height ());
+    }
+    if (circle_size.height () > circle_size.width ()) {
+	start_point.setY ((circle_size.height () - circle_size.width ()) >> 1);
+	circle_size.setHeight (circle_size.width ());
+    }
+    estimated_circle_rect = QRect (start_point, circle_size);
+    estimated_circle_center = QPointF (start_point.x () + circle_size.width ()*0.5, start_point.y () + circle_size.height ()*0.5);
+    estimated_circle_radius = estimated_circle_rect.width ()*0.5;
+}
 void AnalogTimer::mouseMoveEvent (QMouseEvent *event)
 {
+    QPointF tmp = estimated_circle_center - event->pos ();
+    if (QPointF::dotProduct (tmp, tmp) > estimated_circle_radius*estimated_circle_radius) {
+	event->ignore ();
+	return;
+    }
+    emit userIsAlive ();
     emit clearAlarms ();
-    if (pressed) {
-	if (edit_mode) {
+    if (down) {
+	if (edit_mode && !edit_blocked) {
 	    QPoint start_point;
 	    QSize circle_size;
 	    getValuableGeometry (start_point, circle_size);
-	    QPoint current_pos = event->pos () - start_point;
-	    
-	    QPointF circle_center (start_point.x () + circle_size.width ()*0.5, start_point.y () + circle_size.height ()*0.5);
-	    double circle_radius = circle_size.width ()*0.05;
-	    QPointF tmp = circle_center - event->pos ();
-	    if (QPointF::dotProduct (tmp, tmp) < circle_radius*circle_radius) {
-		halted = true;
+	    QPoint current_pos = event->pos () - estimated_circle_rect.topLeft ();
+	    double blind_circle_radius = estimated_circle_rect.width ()*0.05;
+	    QPointF tmp = estimated_circle_center - event->pos ();
+	    if (QPointF::dotProduct (tmp, tmp) < blind_circle_radius*blind_circle_radius) {
+		if (!halted) {
+		    halted = true;
+		    halted_by_timeout = false;
+		    emit released ();
+		    update ();
+		}
 	    } else if (halted) {
-		pressed_time = time_value;
-		pressed_local_rotation = getRotationByPos (current_pos, circle_size);
-		previous_delta_rotation = 0.0;
-		halted = false;
+		if (halted_by_timeout) {
+		    unhalt_by_timeout_time = time_value;
+		    unhalt_by_timeout_local_rotation = getRotationByPos (current_pos, estimated_circle_rect.size ());
+		} else {
+		    pressed_time = time_value;
+		    pressed_local_rotation = getRotationByPos (current_pos, estimated_circle_rect.size ());
+		    previous_delta_rotation = 0.0;
+		    halted = false;
+		    halted_by_timeout = false;
+		    emit pressed ();
+		}
 	    } else {
-		double local_rotation = getRotationByPos (current_pos, circle_size);
+		double local_rotation = getRotationByPos (current_pos, estimated_circle_rect.size ());
 		double previous_local_rotation = positiveFract (pressed_local_rotation + previous_delta_rotation);
 		bool clockwise, clockwise2;
 		double d = shortestRotation (previous_local_rotation, local_rotation, clockwise);
@@ -155,29 +253,31 @@ void AnalogTimer::mouseMoveEvent (QMouseEvent *event)
 }
 void AnalogTimer::mousePressEvent (QMouseEvent *event)
 {
-    QPoint start_point;
-    QSize circle_size;
-    getValuableGeometry (start_point, circle_size);
-    QPointF circle_center (start_point.x () + circle_size.width ()*0.5, start_point.y () + circle_size.height ()*0.5);
-    double circle_radius = circle_size.width ()*0.5;
-    QPointF tmp = circle_center - event->pos ();
-    if (QPointF::dotProduct (tmp, tmp) > circle_radius*circle_radius) {
+    emit userIsAlive ();
+    QPointF tmp = estimated_circle_center - event->pos ();
+    if (QPointF::dotProduct (tmp, tmp) > estimated_circle_radius*estimated_circle_radius) {
 	event->ignore ();
 	return;
     }
     emit clearAlarms ();
     if (event->button () == Qt::LeftButton) {
+	QPoint current_pos = event->pos () - estimated_circle_rect.topLeft ();
+	unhalt_by_timeout_time = time_value;
+	unhalt_by_timeout_local_rotation = getRotationByPos (current_pos, estimated_circle_rect.size ());
 	if (edit_mode) {
-	    QPoint start_point;
-	    QSize circle_size;
-	    getValuableGeometry (start_point, circle_size);
-	    QPoint current_pos = event->pos () - start_point;
-	    pressed = true;
-	    pressed_time = time_value;
-	    pressed_local_rotation = getRotationByPos (current_pos, circle_size);
-	    previous_delta_rotation = 0.0;
-	    halted = false;
-	    update ();
+	    if (edit_blocked) {
+		down = true;
+	    } else {
+		if (!down)
+		    emit pressed ();
+		down = true;
+		pressed_time = time_value;
+		pressed_local_rotation = getRotationByPos (current_pos, estimated_circle_rect.size ());
+		previous_delta_rotation = 0.0;
+		halted = false;
+		halted_by_timeout = false;
+		update ();
+	    }
 	} else {
 	    emit enterEditModeRequested ();
 	}
@@ -185,35 +285,30 @@ void AnalogTimer::mousePressEvent (QMouseEvent *event)
 }
 void AnalogTimer::mouseReleaseEvent (QMouseEvent *event)
 {
-    QPoint start_point;
-    QSize circle_size;
-    getValuableGeometry (start_point, circle_size);
-    QPointF circle_center (start_point.x () + circle_size.width ()*0.5, start_point.y () + circle_size.height ()*0.5);
-    double circle_radius = circle_size.width ()*0.5;
-    QPointF tmp = circle_center - event->pos ();
-    if (QPointF::dotProduct (tmp, tmp) > circle_radius*circle_radius) {
-	event->ignore ();
-	return;
-    }
+    QPointF tmp = estimated_circle_center - event->pos ();
     emit clearAlarms ();
     if (event->button () == Qt::LeftButton) {
-	if (pressed) {
-	    pressed = false;
-	    if (edit_mode)
-		emit leaveEditModeRequested ();
+	if (down) {
+	    if (edit_mode && !halted && !halted_by_timeout)
+		emit released ();
+	    down = false;
+	    if (QPointF::dotProduct (tmp, tmp) <= estimated_circle_radius*estimated_circle_radius) {
+		if (edit_mode && !edit_blocked)
+		    emit leaveEditModeRequested ();
+	    }
 	    update ();
 	}
     }
 }
-void AnalogTimer::paintEvent (QPaintEvent *)
+void AnalogTimer::mouseDoubleClickEvent (QMouseEvent *event)
 {
-    QPoint start_point;
-    QSize circle_size;
-    getValuableGeometry (start_point, circle_size);
-    QRectF circle_rect (start_point, circle_size);
-    QPointF circle_center (start_point.x () + circle_size.width ()*0.5, start_point.y () + circle_size.height ()*0.5);
-    double circle_radius = circle_rect.width ()*0.5;
-
+    QPointF tmp = estimated_circle_center - event->pos ();
+    if (QPointF::dotProduct (tmp, tmp) > estimated_circle_radius*estimated_circle_radius) {
+	event->ignore ();
+    }
+}
+void AnalogTimer::paintEvent (QPaintEvent*)
+{
     int int_value = QTime (0, 0, 0).secsTo (getTime ());
     int full_hours = int_value/3600;
     int int_angle = int_value%3600;
@@ -223,28 +318,33 @@ void AnalogTimer::paintEvent (QPaintEvent *)
     QPainter p (this);
     p.setRenderHint (QPainter::Antialiasing, true);
     p.setPen (Qt::NoPen);
+    if (KITCHENTIMER_SHOW_DEBUG_OVERLAY) {
+	p.setBrush (QColor (0xff, 0, 0, 60));
+	p.drawRect (rect ());
+    }
 
-    double press_scale_factor = pressed ? 0.97 : 1.0;
+    bool draw_down = down && !halted;
+    double press_scale_factor = draw_down ? 0.97 : 1.0;
 
-    QColor core_color = pressed ? QColor (0xe8, 0xe8, 0xe8) : QColor (0xfd, 0xfd, 0xfd);
+    QColor core_color = draw_down ? QColor (0xe8, 0xe8, 0xe8) : QColor (0xfd, 0xfd, 0xfd);
 
     {
 	p.setBrush (QColor (0, 0, 0, 80));
-	p.drawPie (circle_rect, 0, 5760);
+	p.drawPie (estimated_circle_rect, 0, 5760);
 	p.setBrush (QColor (0xf3, 0xf3, 0xf3));
-	p.drawPie (getScaledRect (circle_rect, 0.96899224806202), 0, 5760);
+	p.drawPie (getScaledRect (estimated_circle_rect, 0.96899224806202), 0, 5760);
 	p.setBrush (QColor (0xff, 0xff, 0xff));
-	p.drawPie (getScaledRect (circle_rect, 0.89147286821705), 0, 5760);
+	p.drawPie (getScaledRect (estimated_circle_rect, 0.89147286821705), 0, 5760);
 	p.setBrush (QColor (0xc0, 0x33, 0x33));
-	p.drawPie (getScaledRect (circle_rect, 0.6), 1440, -(int_angle << 3)/5);
+	p.drawPie (getScaledRect (estimated_circle_rect, 0.6), 1440, -(int_angle << 3)/5);
 	p.setBrush (QColor (0xcc, 0xcc, 0xcc));
-	p.drawPie (getScaledRect (circle_rect, 0.55813953488372), 0, 5760);
-	if (pressed) {
+	p.drawPie (getScaledRect (estimated_circle_rect, 0.55813953488372), 0, 5760);
+	if (draw_down) {
 	    p.setBrush (QColor (0xc3, 0xc3, 0xc3));
-	    p.drawPie (getScaledRect (circle_rect, 0.53488372093023), 0, 5760);
+	    p.drawPie (getScaledRect (estimated_circle_rect, 0.53488372093023), 0, 5760);
 	}
 	p.setBrush (core_color);
-	p.drawPie (getScaledRect (circle_rect, 0.53488372093023*press_scale_factor), 0, 5760);
+	p.drawPie (getScaledRect (estimated_circle_rect, 0.53488372093023*press_scale_factor), 0, 5760);
     }
 
     {
@@ -253,12 +353,12 @@ void AnalogTimer::paintEvent (QPaintEvent *)
 	for (int i = 0; i < 12*5; ++i, angle += 6.0) {
 	    if (i%5) {
 		QTransform tr;
-		tr.translate (circle_center.x (), circle_center.y ());
+		tr.translate (estimated_circle_center.x (), estimated_circle_center.y ());
 		tr.rotate (angle);
-		tr.translate (-circle_center.x (), -circle_center.y ());
+		tr.translate (-estimated_circle_center.x (), -estimated_circle_center.y ());
 		p.setTransform (tr);
-		p.drawRect (QRectF (circle_center + QPointF (-circle_rect.width ()*0.003, circle_rect.height ()*0.29),
-				    QSizeF (circle_rect.width ()*0.006, circle_rect.height ()*0.035)));
+		p.drawRect (QRectF (estimated_circle_center + QPointF (-estimated_circle_rect.width ()*0.003, estimated_circle_rect.height ()*0.29),
+				    QSizeF (estimated_circle_rect.width ()*0.006, estimated_circle_rect.height ()*0.035)));
 	    }
 	}
     }
@@ -268,22 +368,22 @@ void AnalogTimer::paintEvent (QPaintEvent *)
 	double angle = 0.0;
 	for (int i = 0; i < 12; ++i, angle += 30.0) {
 	    QTransform tr;
-	    tr.translate (circle_center.x (), circle_center.y ());
+	    tr.translate (estimated_circle_center.x (), estimated_circle_center.y ());
 	    tr.rotate (angle);
-	    tr.translate (-circle_center.x (), -circle_center.y ());
+	    tr.translate (-estimated_circle_center.x (), -estimated_circle_center.y ());
 	    p.setTransform (tr);
-	    p.drawRect (QRectF (circle_center + QPointF (-circle_rect.width ()*0.005, circle_rect.height ()*0.29),
-				QSizeF (circle_rect.width ()*0.01, circle_rect.height ()*0.045)));
+	    p.drawRect (QRectF (estimated_circle_center + QPointF (-estimated_circle_rect.width ()*0.005, estimated_circle_rect.height ()*0.29),
+				QSizeF (estimated_circle_rect.width ()*0.01, estimated_circle_rect.height ()*0.045)));
 	}
     }
 
     {
 	QTransform tr;
-	tr.translate (circle_center.x (), circle_center.y ());
+	tr.translate (estimated_circle_center.x (), estimated_circle_center.y ());
 	tr.rotate (angle);
-	tr.translate (-circle_center.x (), -circle_center.y ());
+	tr.translate (-estimated_circle_center.x (), -estimated_circle_center.y ());
 	p.setTransform (tr);
-	QRectF handle_shadow_rect = getScaledRect (circle_rect, 0.137519379844961*press_scale_factor, 0.51162790697674*press_scale_factor);
+	QRectF handle_shadow_rect = getScaledRect (estimated_circle_rect, 0.137519379844961*press_scale_factor, 0.51162790697674*press_scale_factor);
 	QLinearGradient handle_shadow_grad (handle_shadow_rect.topLeft () + QPointF (0.0, handle_shadow_rect.height ()*0.5),
 					    handle_shadow_rect.topLeft () + QPointF (handle_shadow_rect.width (), handle_shadow_rect.height ()*0.5));
 	handle_shadow_grad.setColorAt (0, core_color);
@@ -292,7 +392,7 @@ void AnalogTimer::paintEvent (QPaintEvent *)
 	handle_shadow_grad.setColorAt (1, core_color);
 	p.setBrush (handle_shadow_grad);
 	p.drawRect (handle_shadow_rect);
-	QRectF handle_rect = getScaledRect (circle_rect, 0.077519379844961*press_scale_factor, 0.51162790697674*press_scale_factor);
+	QRectF handle_rect = getScaledRect (estimated_circle_rect, 0.077519379844961*press_scale_factor, 0.51162790697674*press_scale_factor);
 	QLinearGradient handle_grad (handle_rect.topLeft () + QPointF (handle_rect.width ()*0.5, 0.0),
 				     handle_rect.topLeft () + QPointF (handle_rect.width ()*0.5, handle_rect.height ()));
 	handle_grad.setColorAt (0, core_color);
@@ -312,16 +412,17 @@ void AnalogTimer::paintEvent (QPaintEvent *)
 	p.drawPolygon (triangle_points, 3);
     }
     p.resetTransform ();
-    double radius = circle_radius*0.8;
+    double text_radius = estimated_circle_radius*0.8;
     QFont small_font = qApp->font ();
-    double font_pixel_size = circle_rect.width ()*0.1;
+    double font_pixel_size = estimated_circle_rect.width ()*0.1;
     small_font.setPixelSize (font_pixel_size);
     p.setFont (small_font);
     p.setPen (QColor (0xc0, 0, 0));
     angle = M_PI*0.5*9.0/3.0;
     int n = 0;
     for (int i = 0; i < 12; ++i) {
-	p.drawText (QRectF (QPointF (circle_center - QPointF (font_pixel_size*1.5 - radius*cos (angle), font_pixel_size*1.5 - radius*sin (angle))),
+	p.drawText (QRectF (QPointF (estimated_circle_center - QPointF (font_pixel_size*1.5 - text_radius*cos (angle),
+									font_pixel_size*1.5 - text_radius*sin (angle))),
 			    QSizeF (font_pixel_size*3.0, font_pixel_size*3.0)), Qt::AlignCenter, QString::number (n));
 	angle += M_PI*0.5*1.0/3.0;
 	n += 5;

@@ -4,10 +4,8 @@
 #define BACKGROUND_H
 
 #include <QWidget>
-
-QT_BEGIN_NAMESPACE
-class QPaintEvent;
-QT_END_NAMESPACE
+#include <QElapsedTimer>
+#include <QTimer>
 
 class Background: public QWidget
 {
@@ -16,18 +14,28 @@ class Background: public QWidget
 public:
     Background (QWidget*);
     void setShaded (bool);
+    void startShading (int);
+    void startUnshading (int);
 
 protected:
     void mousePressEvent (QMouseEvent*);
     void mouseReleaseEvent (QMouseEvent*);
     void paintEvent (QPaintEvent*);
 
+private slots:
+    void checkUpdate ();
+
 private:
+    int transition_timeout;
     bool shaded;
+    QElapsedTimer elapsed_timer;
+    QTimer repaint_timer;
 
 signals:
     void pressed ();
     void released ();
+    void shadingDone ();
+    void unshadingDone ();
 };
 
 #endif

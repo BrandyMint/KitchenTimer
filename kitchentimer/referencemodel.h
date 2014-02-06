@@ -9,6 +9,7 @@
 
 class ReferenceItem;
 
+
 class ReferenceModel: public QAbstractItemModel
 {
     Q_OBJECT
@@ -26,7 +27,7 @@ public:
     QList<ReferenceItem*> &getPlainList ();
     int getCurrentIndex ();
     void setCurrentIndex (int);
-    void loadModelData (const QStringList&);
+    void loadModelFile (const QString&);
 
 private:
     ReferenceItem *root_item;

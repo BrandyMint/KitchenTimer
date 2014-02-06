@@ -10,26 +10,6 @@ QT_BEGIN_NAMESPACE
 class QAudioOutput;
 QT_END_NAMESPACE
 
-class AlarmEvent: public QObject
-{
-    Q_OBJECT
-
-public:
-    AlarmEvent ();
-    ~AlarmEvent ();
-    void start ();
-    void stop ();
-
-private slots:
-    void handleAudioOutputStateChanged (QAudio::State);
-
-private:
-    QFile source_file;
-    QAudioOutput *audio_output;
-
-signals:
-    void playBackDone ();
-};
 
 class AlarmSequencer: public QObject
 {
@@ -39,13 +19,29 @@ public:
     AlarmSequencer ();
     ~AlarmSequencer ();
     void runSingleAlarm ();
+    void runTimerStart ();
+    void soundAnalogTimerPressed ();
+    void soundAnalogTimerReleased ();
+    void signalLongPress ();
 
 public slots:
     void clearAlarms ();
     void enqueueClearAlarms ();
+    void setAudioEnabled (bool);
 
 private:
-    AlarmEvent *event;
+    void enqueueVibration ();
+
+private slots:
+    void handleAudioOutputStateChanged (QAudio::State);
+
+private:
+    QFile source_file;
+    QFile click_source_file;
+    QAudioOutput *audio_output;
+    QAudioOutput *click_audio_output;
+    bool last_is_alarm;
+    bool audio_enabled;
 };
 
 #endif

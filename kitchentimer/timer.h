@@ -7,13 +7,13 @@
 #include <QTime>
 #include <QTimer>
 
+
 class Timer: public QObject
 {
     Q_OBJECT
 
 public:
-    Timer (const QTime&, const QTime&, const QString&);
-    void setPeriod (const QTime&);
+    Timer (const QTime&, const QString&);
     const QTime &getPeriod ();
     void setTimeLeft (const QTime&);
     const QTime &getTimeLeft ();

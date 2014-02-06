@@ -7,8 +7,9 @@
 
 class PageIntro;
 class PageTimers;
-class PageTimerEdit;
 class PageDishSelect;
+class PageSettings;
+
 
 class MainWindow: public QStackedWidget
 {
@@ -19,29 +20,25 @@ public:
     ~MainWindow ();
 
 public slots:
-    void switchToPageIntro ();
     void switchToPageTimers ();
-    void switchToPageTimerEdit ();
     void switchToPageDishSelect ();
+    void switchToPageSettings ();
     void setCurrentDish (int);
     void leavePageDishSelect ();
-    void previousTimer ();
-    void nextTimer ();
-    void removeTimer (int);
     void cancelCurrentTimer ();
     void acceptCurrentTimer (const QString&, const QTime&);
-    void editCurrentTimer ();
     void stopCurrentTimer ();
     void setStartCurrentTimer (const QTime&);
+    void soundAnalogTimerPressed ();
+    void soundAnalogTimerReleased ();
     void previousDish ();
     void nextDish ();
-    void adjustTimerFromDishDetails (const QTime&, const QString&);
 
 private:
     PageIntro *page_intro;
     PageTimers *page_timers;
-    PageTimerEdit *page_timer_edit;
     PageDishSelect *page_dish_select;
+    PageSettings *page_settings;
 };
 
 #endif

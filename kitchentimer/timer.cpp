@@ -9,16 +9,16 @@
 #include <stdio.h>
 
 
-Timer::Timer (const QTime &period, const QTime &time_left, const QString &title)
-    : period (period), time_left (time_left), title (title), running (false)
+Timer::Timer (const QTime &time_left, const QString &title)
+    : period (0, 0, 0), time_left (time_left), title (title), running (false)
 {
     connect (&main_timer, SIGNAL (timeout ()), this, SLOT (internalTimeout ()));
     connect (&ticker, SIGNAL (timeout ()), this, SLOT (internalTick ()));
 }
-void Timer::setPeriod (const QTime &new_period)
-{
-    period = new_period;
-}
+// void Timer::setPeriod (const QTime &new_period)
+// {
+//     period = new_period;
+// }
 const QTime &Timer::getPeriod ()
 {
     return period;
@@ -35,6 +35,7 @@ void Timer::start ()
 {
     main_timer.setSingleShot (true);
     main_timer.start (QTime (0, 0, 0).msecsTo (time_left));
+    period = time_left;
     running = true;
     ticker.start (1000);
 }

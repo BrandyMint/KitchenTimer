@@ -1,5 +1,6 @@
 #include "pagedishselect.h"
-#include "application.h"
+#include "applicationmanager.h"
+#include "resourcemanager.h"
 #include "referenceitem.h"
 
 #include <QPushButton>
@@ -21,14 +22,14 @@ PageDishSelect::PageDishSelect (QWidget *parent)
 
     {
 	QHBoxLayout *hlayout = new QHBoxLayout ();
-	switch_to_tree_view_subpage_button = new QPushButton (app->reference_return_icon, "", this);
+	switch_to_tree_view_subpage_button = new QPushButton (resource_manager->reference_return_icon, "", this);
 	connect (switch_to_tree_view_subpage_button, SIGNAL (clicked ()), this, SLOT (switchToTreeViewSubpage ()));
 	hlayout->addWidget (switch_to_tree_view_subpage_button);
 	switch_to_tree_view_subpage_button->setEnabled (false);
 	hlayout->addStretch (1);
 	hlayout->addWidget (new QLabel ("What do we cook?", this));
 	hlayout->addStretch (1);
-	QPushButton *close_button = new QPushButton (app->reference_close_icon, "", this);
+	QPushButton *close_button = new QPushButton (resource_manager->reference_close_icon, "", this);
 	connect (close_button, SIGNAL (clicked ()), this, SIGNAL (leavePage ()));
 	hlayout->addWidget (close_button);
 	layout->addLayout (hlayout);
@@ -42,13 +43,13 @@ PageDishSelect::PageDishSelect (QWidget *parent)
 	    QHBoxLayout *hlayout = new QHBoxLayout ();
 	    QLineEdit *search_line_edit = new QLineEdit (tree_view_subpage);
 	    hlayout->addWidget (search_line_edit, 1);
-	    QPushButton *search_button = new QPushButton (app->reference_search_icon, "", tree_view_subpage);
+	    QPushButton *search_button = new QPushButton (resource_manager->reference_search_icon, "", tree_view_subpage);
 	    hlayout->addWidget (search_button);
 	    subpage_layout->addLayout (hlayout);
 	}
 	{
 	    reference_tree_view = new QTreeView (tree_view_subpage);
-	    reference_tree_view->setModel (&app->getReferenceModel ());
+	    reference_tree_view->setModel (&app_manager->reference_model);
 	    reference_tree_view->setHeaderHidden (true);
 	    reference_tree_view->show ();
 	    connect (reference_tree_view, SIGNAL (clicked (const QModelIndex&)),
@@ -65,14 +66,14 @@ PageDishSelect::PageDishSelect (QWidget *parent)
 
 	{
 	    QHBoxLayout *hlayout = new QHBoxLayout ();
-	    previous_dish_button = new QPushButton (app->previous_dish_icon, "", details_subpage);
+	    previous_dish_button = new QPushButton (resource_manager->previous_dish_icon, "", details_subpage);
 	    connect (previous_dish_button, SIGNAL (clicked ()), this, SIGNAL (previousDish ()));
 	    hlayout->addWidget (previous_dish_button);
 	    hlayout->addStretch (1);
 	    full_title_label = new QLabel ("Full title", details_subpage);
 	    hlayout->addWidget (full_title_label, 0);
 	    hlayout->addStretch (1);
-	    next_dish_button = new QPushButton (app->next_dish_icon, "", details_subpage);
+	    next_dish_button = new QPushButton (resource_manager->next_dish_icon, "", details_subpage);
 	    connect (next_dish_button, SIGNAL (clicked ()), this, SIGNAL (nextDish ()));
 	    hlayout->addWidget (next_dish_button);
 	    subpage_layout->addLayout (hlayout);
@@ -115,7 +116,7 @@ void PageDishSelect::updateContentSubpageTreeView ()
 }
 void PageDishSelect::updateContentSubpageDetails ()
 {
-    ReferenceModel &reference_model = app->getReferenceModel ();
+    ReferenceModel &reference_model = app_manager->reference_model;
     QList<ReferenceItem*> &plain_list = reference_model.getPlainList ();
     int current_index = reference_model.getCurrentIndex ();
     if ((current_index < 0) || (current_index > plain_list.size ())) {
@@ -171,21 +172,21 @@ void PageDishSelect::requestSwitchToPageDishDetails (const QModelIndex &index)
 }
 void PageDishSelect::adjustHyperTimer (const QString &link)
 {
-    int current_index = app->getReferenceModel ().getCurrentIndex ();
-    if ((current_index < 0) || (current_index > app->getReferenceModel ().getPlainList ().size ())) {
+    int current_index = app_manager->reference_model.getCurrentIndex ();
+    if ((current_index < 0) || (current_index > app_manager->reference_model.getPlainList ().size ())) {
 	return;
     }
     QTime time = QTime::fromString (link, "hh:mm:ss");
-    QString full_title = app->getReferenceModel ().getPlainList ()[current_index]->getFullTitle ();
+    QString full_title = app_manager->reference_model.getPlainList ()[current_index]->getFullTitle ();
     emit adjustTimer (time, full_title);
 }
 void PageDishSelect::adjustDefaultTimer ()
 {
-    int current_index = app->getReferenceModel ().getCurrentIndex ();
-    if ((current_index < 0) || (current_index > app->getReferenceModel ().getPlainList ().size ())) {
+    int current_index = app_manager->reference_model.getCurrentIndex ();
+    if ((current_index < 0) || (current_index > app_manager->reference_model.getPlainList ().size ())) {
 	return;
     }
-    QTime default_time = app->getReferenceModel ().getPlainList ()[current_index]->getDefaultTime ();
-    QString full_title = app->getReferenceModel ().getPlainList ()[current_index]->getFullTitle ();
+    QTime default_time = app_manager->reference_model.getPlainList ()[current_index]->getDefaultTime ();
+    QString full_title = app_manager->reference_model.getPlainList ()[current_index]->getFullTitle ();
     emit adjustTimer (default_time, full_title);
 }

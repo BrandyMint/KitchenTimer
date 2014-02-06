@@ -1,1 +1,1 @@
-make && ./kitchentimer
+make run

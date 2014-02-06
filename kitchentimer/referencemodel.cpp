@@ -2,6 +2,7 @@
 #include "referencemodel.h"
 
 #include <QStringList>
+#include <QFile>
 
 ReferenceModel::ReferenceModel ()
     : current_index (-1)
@@ -89,8 +90,13 @@ void ReferenceModel::setCurrentIndex (int new_current_index)
 {
     current_index = new_current_index;
 }
-void ReferenceModel::loadModelData (const QStringList &lines)
+void ReferenceModel::loadModelFile (const QString &filename)
 {
+    QFile file (filename);
+    file.open (QIODevice::ReadOnly);
+    QStringList lines = QString (file.readAll ()).split (QString ("\n"));
+    file.close ();
+
     QList<ReferenceItem*> parents;
     QList<int> indentations;
     parents << root_item;

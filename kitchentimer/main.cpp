@@ -1,8 +1,8 @@
-#include <QApplication>
-#include <QTranslator>
-
 #include "application.h"
 #include "mainwindow.h"
+
+#include <QTranslator>
+
 
 int main (int argc, char *argv[])
 {
@@ -19,5 +19,8 @@ int main (int argc, char *argv[])
 #ifdef Q_OS_MAC
     window.raise ();
 #endif
+    // TODO: Hide following for non-desktop platforms
+    window.setWindowFlags (Qt::FramelessWindowHint);
+    window.resize (540, 768);
     return application.exec ();
 }
