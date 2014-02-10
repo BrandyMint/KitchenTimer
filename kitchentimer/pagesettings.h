@@ -25,6 +25,7 @@ private slots:
     void update_KITCHENTIMER_INITIAL_EDIT_TRANSITION_TIMEOUT_MS (int);
     void update_KITCHENTIMER_INITIAL_EDIT_HOLD_TIMEOUT_MS (int);
     void update_KITCHENTIMER_LEAVE_EDIT_MODE_TIMEOUT_MS (int);
+    void update_KITCHENTIMER_ANALOG_TIMER_MODE (int);
     void update_KITCHENTIMER_DIGITAL_TIMER_MODE (int);
     void update_KITCHENTIMER_SHOW_DEBUG_OVERLAY (bool);
 

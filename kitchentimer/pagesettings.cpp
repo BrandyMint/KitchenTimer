@@ -13,6 +13,7 @@
 #include <QGroupBox>
 #include <QRadioButton>
 #include <QCheckBox>
+#include <QScreen>
 
 
 #define KITCHENTIMER_EDIT_TRANSITION_TIMEOUT_MS_default 100
@@ -20,14 +21,17 @@
 #define KITCHENTIMER_INITIAL_EDIT_TRANSITION_TIMEOUT_MS_default 20
 #define KITCHENTIMER_INITIAL_EDIT_HOLD_TIMEOUT_MS_default 30
 #define KITCHENTIMER_LEAVE_EDIT_MODE_TIMEOUT_MS_default 1000
+#define KITCHENTIMER_ANALOG_TIMER_MODE_default 2
+#define KITCHENTIMER_ANALOG_TIMER_MODE_count 3
 #define KITCHENTIMER_DIGITAL_TIMER_MODE_default 0
-#define KITCHENTIMER_DIGITAL_TIMER_MODE_count 3
+#define KITCHENTIMER_DIGITAL_TIMER_MODE_count 5
 
 int KITCHENTIMER_EDIT_TRANSITION_TIMEOUT_MS = KITCHENTIMER_EDIT_TRANSITION_TIMEOUT_MS_default;
 int KITCHENTIMER_EDIT_HOLD_TIMEOUT_MS = KITCHENTIMER_EDIT_HOLD_TIMEOUT_MS_default;
 int KITCHENTIMER_INITIAL_EDIT_TRANSITION_TIMEOUT_MS = KITCHENTIMER_INITIAL_EDIT_TRANSITION_TIMEOUT_MS_default;
 int KITCHENTIMER_INITIAL_EDIT_HOLD_TIMEOUT_MS = KITCHENTIMER_INITIAL_EDIT_HOLD_TIMEOUT_MS_default;
 int KITCHENTIMER_LEAVE_EDIT_MODE_TIMEOUT_MS = KITCHENTIMER_LEAVE_EDIT_MODE_TIMEOUT_MS_default;
+int KITCHENTIMER_ANALOG_TIMER_MODE = KITCHENTIMER_ANALOG_TIMER_MODE_default;
 int KITCHENTIMER_DIGITAL_TIMER_MODE = KITCHENTIMER_DIGITAL_TIMER_MODE_default;
 bool KITCHENTIMER_SHOW_DEBUG_OVERLAY = false;
 
@@ -37,12 +41,17 @@ PageSettings::PageSettings (QWidget *parent)
     QRadioButton *radio_button;
     QGroupBox *group_box;
     QButtonGroup *button_group;
+    QHBoxLayout *hlayout;
 
     QWidget *scroll_widget = new QWidget (this);
     setWidget (scroll_widget);
     setWidgetResizable (true);
 
-    font.setPixelSize (20);
+    QScreen *screen = QGuiApplication::primaryScreen();
+    if (screen)
+	font.setPixelSize (screen->physicalDotsPerInch ()*0.3);
+    else
+	font.setPixelSize (20);
     setFont (font);
 
     QVBoxLayout *layout = new QVBoxLayout (scroll_widget);
@@ -80,24 +89,39 @@ PageSettings::PageSettings (QWidget *parent)
     layout->addLayout (grid_layout, 0);
 
     button_group = new QButtonGroup (this);
+    group_box = new QGroupBox ("Analog timer mode");
+    hlayout = new QHBoxLayout (group_box);
+    for (int i = 0; i < KITCHENTIMER_ANALOG_TIMER_MODE_count; ++i) {
+	radio_button = new QRadioButton ("Mode " + QString::number (i));
+	hlayout->addWidget (radio_button);
+	button_group->addButton (radio_button, i);
+	if (i == KITCHENTIMER_ANALOG_TIMER_MODE_default)
+	    radio_button->setChecked (true);
+    }
+    hlayout->addStretch (1);
+    layout->addWidget (group_box);
+    connect (button_group, SIGNAL (buttonClicked (int)), this, SLOT (update_KITCHENTIMER_ANALOG_TIMER_MODE (int)));
+
+    button_group = new QButtonGroup (this);
     group_box = new QGroupBox ("Digital timer mode");
-    QHBoxLayout *radio_button_layout = new QHBoxLayout (group_box);
+    hlayout = new QHBoxLayout (group_box);
     for (int i = 0; i < KITCHENTIMER_DIGITAL_TIMER_MODE_count; ++i) {
 	radio_button = new QRadioButton ("Mode " + QString::number (i));
-	radio_button_layout->addWidget (radio_button);
-	button_group->addButton (radio_button, 0);
+	hlayout->addWidget (radio_button);
+	button_group->addButton (radio_button, i);
 	if (i == KITCHENTIMER_DIGITAL_TIMER_MODE_default)
 	    radio_button->setChecked (true);
     }
-    radio_button_layout->addStretch (1);
+    hlayout->addStretch (1);
     layout->addWidget (group_box);
+    connect (button_group, SIGNAL (buttonClicked (int)), this, SLOT (update_KITCHENTIMER_DIGITAL_TIMER_MODE (int)));
 
     QCheckBox *show_debug_overlay_check_box = new QCheckBox ("Show debug overlay", this);
     show_debug_overlay_check_box->setChecked (KITCHENTIMER_SHOW_DEBUG_OVERLAY);
     connect (show_debug_overlay_check_box, SIGNAL (toggled (bool)), this, SLOT (update_KITCHENTIMER_SHOW_DEBUG_OVERLAY (bool)));
     layout->addWidget (show_debug_overlay_check_box);
 
-    QHBoxLayout *hlayout = new QHBoxLayout ();
+    hlayout = new QHBoxLayout ();
     hlayout->addStretch (1);
     QPushButton *close_button = new QPushButton ("Close", scroll_widget);
     connect (close_button, SIGNAL (clicked ()), this, SIGNAL (leavePage ()));
@@ -111,7 +135,7 @@ PageSettings::~PageSettings ()
 {
 }
 
-#define ADD_INT_CHANGE_HANDLER(var)				\
+#define ADD_INT_CHANGE_HANDLER(var)			\
     void PageSettings::update_ ## var (int new_value)	\
     {							\
 	var = new_value;				\
@@ -123,6 +147,10 @@ ADD_INT_CHANGE_HANDLER (KITCHENTIMER_EDIT_HOLD_TIMEOUT_MS)
 ADD_INT_CHANGE_HANDLER (KITCHENTIMER_INITIAL_EDIT_TRANSITION_TIMEOUT_MS)
 ADD_INT_CHANGE_HANDLER (KITCHENTIMER_INITIAL_EDIT_HOLD_TIMEOUT_MS)
 ADD_INT_CHANGE_HANDLER (KITCHENTIMER_LEAVE_EDIT_MODE_TIMEOUT_MS)
+void PageSettings::update_KITCHENTIMER_ANALOG_TIMER_MODE (int new_mode)
+{
+    KITCHENTIMER_ANALOG_TIMER_MODE = new_mode;
+}
 void PageSettings::update_KITCHENTIMER_DIGITAL_TIMER_MODE (int new_mode)
 {
     KITCHENTIMER_DIGITAL_TIMER_MODE = new_mode;

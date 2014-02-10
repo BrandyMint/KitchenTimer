@@ -15,10 +15,6 @@ Timer::Timer (const QTime &time_left, const QString &title)
     connect (&main_timer, SIGNAL (timeout ()), this, SLOT (internalTimeout ()));
     connect (&ticker, SIGNAL (timeout ()), this, SLOT (internalTick ()));
 }
-// void Timer::setPeriod (const QTime &new_period)
-// {
-//     period = new_period;
-// }
 const QTime &Timer::getPeriod ()
 {
     return period;
@@ -26,6 +22,7 @@ const QTime &Timer::getPeriod ()
 void Timer::setTimeLeft (const QTime &new_time_left)
 {
     time_left = new_time_left;
+    emit newTimeSet ();
 }
 const QTime &Timer::getTimeLeft ()
 {
@@ -37,7 +34,7 @@ void Timer::start ()
     main_timer.start (QTime (0, 0, 0).msecsTo (time_left));
     period = time_left;
     running = true;
-    ticker.start (1000);
+    ticker.start (100);
 }
 void Timer::stop ()
 {
@@ -59,9 +56,11 @@ const QString &Timer::getTitle ()
 }
 void Timer::internalTick ()
 {
-    time_left = time_left.addSecs (-1);
-    if (QTime (0, 0, 0).msecsTo (time_left) < 0)
+    if (QTime (0, 0, 0).msecsTo (time_left) < 100) {
 	time_left = QTime (0, 0, 0);
+    } else {
+	time_left = time_left.addMSecs (-100);
+    }
     emit updateTick ();
 }
 void Timer::internalTimeout ()

@@ -38,6 +38,7 @@ private:
 signals:
     void updateTick ();
     void timeout ();
+    void newTimeSet ();
 };
 
 #endif

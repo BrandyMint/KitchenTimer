@@ -47,8 +47,8 @@ PageTimers::PageTimers (QWidget *parent)
     layout->setColumnStretch (2, 15);
 
     layout->setRowStretch (0, 2);
-    layout->setRowStretch (1, 35);
-    layout->setRowStretch (2, 45);
+    layout->setRowStretch (1, 40);
+    layout->setRowStretch (2, 40);
     layout->setRowStretch (3, 10);
     layout->setRowStretch (4, 2);
     
@@ -79,15 +79,19 @@ PageTimers::PageTimers (QWidget *parent)
     updateContent ();
 
     connect (&update_timer, SIGNAL (timeout ()), this, SLOT (updateContent ()));
-    update_timer.setInterval (250);
+    update_timer.setInterval (100);
     update_timer.setSingleShot (false);
     update_timer.start ();
 
     leave_edit_mode_timer.setSingleShot (false);
     connect (&leave_edit_mode_timer, SIGNAL (timeout ()), this, SLOT (leaveEditMode ()));
 
+    connect (analog_timer, SIGNAL (lmb_pressed ()), &leave_edit_mode_timer, SLOT (stop ()));
+    connect (digital_timer, SIGNAL (lmb_pressed ()), &leave_edit_mode_timer, SLOT (stop ()));
     connect (analog_timer, SIGNAL (userIsAlive ()), this, SLOT (restartTirednessTimer ()));
     connect (digital_timer, SIGNAL (userIsAlive ()), this, SLOT (restartTirednessTimer ()));
+    connect (analog_timer, SIGNAL (lmb_released ()), this, SLOT (startTirednessTimer ()));
+    connect (digital_timer, SIGNAL (lmb_released ()), this, SLOT (startTirednessTimer ()));
 }
 PageTimers::~PageTimers ()
 {
@@ -96,6 +100,7 @@ void PageTimers::updateContent ()
 {
     if (!analog_timer->isSliderDown ()) {
 	Timer *current_timer = app_manager->getCurrentTimer ();
+	QTime tm = current_timer->getTimeLeft ();
 	digital_timer->setTime (current_timer->getTimeLeft ());
 	analog_timer->setTime (current_timer->getTimeLeft ());
     }
@@ -147,7 +152,7 @@ void PageTimers::enterEditMode ()
 	    app_manager->edition_happened = true;
 	}
 	app_manager->getCurrentTimer ()->stop ();
-	leave_edit_mode_timer.start (KITCHENTIMER_LEAVE_EDIT_MODE_TIMEOUT_MS);
+	// leave_edit_mode_timer.start (KITCHENTIMER_LEAVE_EDIT_MODE_TIMEOUT_MS);
     }
 }
 void PageTimers::enterEditModePressed ()
@@ -167,7 +172,7 @@ void PageTimers::enterEditModePressed ()
 	    app_manager->edition_happened = true;
 	}
 	app_manager->getCurrentTimer ()->stop ();
-	leave_edit_mode_timer.start (KITCHENTIMER_LEAVE_EDIT_MODE_TIMEOUT_MS);
+	// leave_edit_mode_timer.start (KITCHENTIMER_LEAVE_EDIT_MODE_TIMEOUT_MS);
     }
 }
 void PageTimers::leaveEditMode ()
@@ -192,6 +197,11 @@ void PageTimers::timeout ()
     app_manager->runAlarmOnce ();
 }
 void PageTimers::restartTirednessTimer ()
+{
+    if (leave_edit_mode_timer.isActive ())
+	leave_edit_mode_timer.start (KITCHENTIMER_LEAVE_EDIT_MODE_TIMEOUT_MS);
+}
+void PageTimers::startTirednessTimer ()
 {
     leave_edit_mode_timer.start (KITCHENTIMER_LEAVE_EDIT_MODE_TIMEOUT_MS);
 }

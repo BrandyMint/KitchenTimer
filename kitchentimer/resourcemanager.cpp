@@ -31,6 +31,8 @@ ResourceManager::ResourceManager ()
       reference_search_icon (":/images/reference-search.png"),
       background_image (":/images/background.png"),
       button_stick_image (":/images/button-stick.png"),
+      analog_timer_core_image (":/images/analog-timer-core.png"),
+      analog_timer_handle_image (":/images/analog-timer-handle.png"),
       audio_enabled_svg (QString (":/images/audio-enabled.svg")),
       audio_enabled_pressed_svg (QString (":/images/audio-enabled-pressed.svg")),
       audio_disabled_svg (QString (":/images/audio-disabled.svg")),

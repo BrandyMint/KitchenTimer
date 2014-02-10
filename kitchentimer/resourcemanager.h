@@ -38,6 +38,8 @@ public:
     QIcon reference_search_icon;
     QImage background_image;
     QImage button_stick_image;
+    QImage analog_timer_core_image;
+    QImage analog_timer_handle_image;
     QSvgRenderer audio_enabled_svg;
     QSvgRenderer audio_enabled_pressed_svg;
     QSvgRenderer audio_disabled_svg;

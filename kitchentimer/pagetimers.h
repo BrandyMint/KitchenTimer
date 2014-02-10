@@ -49,6 +49,7 @@ private slots:
     void leaveEditMode ();
     void timeout ();
     void restartTirednessTimer ();
+    void startTirednessTimer ();
 
 private:
     ButtonStick *button_stick;
