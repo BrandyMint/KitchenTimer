@@ -3,6 +3,8 @@
 #include <QtCore/qmath.h>
 #include <QApplication>
 #include <QPicture>
+#include <QPropertyAnimation>
+#include <QDebug>
 
 #include "digitaltimer.h"
 #include "applicationmanager.h"
@@ -21,11 +23,14 @@
 
 #define TEXT_FLAGS (Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip | Qt::TextIncludeTrailingSpaces)
 
+#define ANIMATION_MIN_FRAME_TIMEOUT 10
+
 
 DigitalTimer::DigitalTimer (QWidget *parent)
-    : QWidget (parent), font (qApp->font ()),
-      font2 (qApp->font ()),
-      value (0, 0, 0), edit_mode (false), unblock_timeout (0), button_pressed (NonePressed), button_pressed_rect (0, 0, 0, 0),
+    : QWidget (parent),
+      font (qApp->font ()), font2 (qApp->font ()),
+      animator (this, ANIMATION_MIN_FRAME_TIMEOUT),
+      edit_mode (false), unblock_timeout (0), button_pressed (NonePressed), button_pressed_rect (0, 0, 0, 0),
       estimated_size (-1, -1),
       estimated_font_size (3),
       estimated_char_bounding_size (-1, -1),
@@ -34,28 +39,23 @@ DigitalTimer::DigitalTimer (QWidget *parent)
       estimated_min_scroll_offset (MIN_OFFSET_TO_START_SCROLL_MIN_PIXELS),
       estimated_scroll_step_offset (SCROLL_STEP_MIN_PIXELS),
       estimated_minute_add_rect (0, 0, 0, 0),
-      estimated_minute_subtract_rect (0, 0, 0, 0)
+      estimated_minute_subtract_rect (0, 0, 0, 0),
+      estimated_digits_rect (0, 0, 0, 0)
 {
-    edit_mode_elapsed_timer.invalidate ();
     font.setPixelSize (estimated_font_size);
     setFont (font);
-    connect (&repaint_timer, SIGNAL (timeout ()), this, SLOT (checkUpdate ()));
+    edit_mode_elapsed_timer.invalidate ();
+    connect (app_manager->getCurrentTimer (), SIGNAL (timeout ()), this, SLOT (update ()));
+    connect (app_manager->getCurrentTimer (), SIGNAL (timeout ()), &animator, SLOT (stop ()));
     connect (app_manager->getCurrentTimer (), SIGNAL (newTimeSet ()), this, SLOT (update ()));
 }
 DigitalTimer::~DigitalTimer ()
 {
 }
-void DigitalTimer::setTime (const QTime &new_value)
-{
-    value = new_value;
-    update ();
-}
-void DigitalTimer::updateTime ()
-{
-    update ();
-}
 bool DigitalTimer::addMinuteSharp ()
 {
+    Timer *timer = app_manager->getCurrentTimer ();
+    QTime value = timer->getTimeLeft ();
     int ms = QTime (0, 0, 0).msecsTo (value); // TODO: Switch to Qt-5.2.0: .msecsSinceStartOfDay ();
     if (ms == (MAX_SEC*1000))
 	return false;
@@ -65,10 +65,13 @@ bool DigitalTimer::addMinuteSharp ()
     if (ms > (MAX_SEC*1000))
 	ms = MAX_SEC*1000;
     value = QTime (0, 0, 0).addMSecs (ms); // TODO: Switch to Qt-5.2.0: QTime::fromMSecsSinceStartOfDay (ms);
+    timer->setTimeLeft (value);
     return true;
 }
 bool DigitalTimer::subtractMinuteSharp ()
 {
+    Timer *timer = app_manager->getCurrentTimer ();
+    QTime value = timer->getTimeLeft ();
     int ms = QTime (0, 0, 0).msecsTo (value); // TODO: Switch to Qt-5.2.0: .msecsSinceStartOfDay ();
     if (ms == 0)
 	return false;
@@ -78,6 +81,7 @@ bool DigitalTimer::subtractMinuteSharp ()
     if (ms < 0)
 	ms = 0;
     value = QTime (0, 0, 0).addMSecs (ms); // TODO: Switch to Qt-5.2.0: QTime::fromMSecsSinceStartOfDay (ms);
+    timer->setTimeLeft (value);
     return true;
 }
 void DigitalTimer::enterEditMode (int new_unblock_timeout)
@@ -89,11 +93,15 @@ void DigitalTimer::enterEditMode (int new_unblock_timeout)
     } else {
 	edit_mode_elapsed_timer.invalidate ();
     }
+    animator.stop ();
     update ();
 }
 void DigitalTimer::leaveEditMode ()
 {
     edit_mode = false;
+    int ms = QTime (0, 0, 0).msecsTo (app_manager->getCurrentTimer ()->getTimeLeft ()); // TODO: Switch to Qt-5.2.0: .msecsSinceStartOfDay ();
+    if (ms > 0)
+	animator.start ();
     update ();
 }
 void DigitalTimer::resizeEvent (QResizeEvent*)
@@ -137,6 +145,7 @@ void DigitalTimer::resizeEvent (QResizeEvent*)
 		}
 	    }
 	    font.setPixelSize (estimated_font_size);
+	    p.setFont (font);
 	    setFont (font);
 	    estimated_size = current_size;
 	    estimated_char_bounding_size = charBoundingSize (p);
@@ -155,13 +164,80 @@ void DigitalTimer::resizeEvent (QResizeEvent*)
 						    current_rect.height () - estimated_arrow_bounding_size.width ()*2,
 						    estimated_char_bounding_size.width ()*2,
 						    estimated_arrow_bounding_size.width ()*2);
+	    estimated_minute_subtract_rect = QRect (current_rect.width ()/2 - estimated_char_bounding_size.width (),
+						    current_rect.height () - estimated_arrow_bounding_size.width ()*2,
+						    estimated_char_bounding_size.width ()*2,
+						    estimated_arrow_bounding_size.width ()*2);
+	}
+    } break;
+    case 1: {
+	QPainter p (&estimation_picture);
+	p.setFont (font);
+	const QRect &current_rect = rect ();
+	QSize current_size = current_rect.size ();
+	if (current_size != estimated_size) {
+	    int w = current_size.width ();
+	    int h = current_size.height ();
+	    int half_w = w/2;
+	    QSize char_bounding_size = charBoundingSize (p);
+	    QSize arrow_bounding_size = arrowBoundingSize (p);
+	    QSize bounding_size = QSize (char_bounding_size.width ()*8, char_bounding_size.height ()*2 + arrow_bounding_size.width ()*2);
+	    if ((bounding_size.width () <= w) && (bounding_size.height () <= h)) {
+		// Increasing size
+		while (estimated_font_size < MAX_FONT_SIZE) {
+		    font.setPixelSize (estimated_font_size + 1);
+		    p.setFont (font);
+		    char_bounding_size = charBoundingSize (p);
+		    arrow_bounding_size = arrowBoundingSize (p);
+		    bounding_size = QSize (char_bounding_size.width ()*8, char_bounding_size.height ()*2 + arrow_bounding_size.width ()*2);
+		    if ((bounding_size.width () > current_size.width ()) ||
+			(bounding_size.height () > current_size.height ()))
+			break;
+		    ++estimated_font_size;
+		}
+	    } else {
+		// Decreasing size
+		while (estimated_font_size > MIN_FONT_SIZE) {
+		    font.setPixelSize (estimated_font_size);
+		    p.setFont (font);
+		    char_bounding_size = charBoundingSize (p);
+		    arrow_bounding_size = arrowBoundingSize (p);
+		    bounding_size = QSize (char_bounding_size.width ()*8, char_bounding_size.height ()*2 + arrow_bounding_size.width ()*2);
+		    if ((bounding_size.width () <= w) && (bounding_size.height () <= h))
+			break;
+		    --estimated_font_size;
+		}
+	    }
+	    font.setPixelSize (estimated_font_size);
+	    setFont (font);
+	    estimated_size = current_size;
+	    estimated_char_bounding_size = charBoundingSize (p);
+	    estimated_arrow_bounding_size = arrowBoundingSize (p);
+	    estimated_separator_bounding_size = separatorBoundingSize (p);
+	    estimated_min_scroll_offset = qMax (int (MIN_OFFSET_TO_START_SCROLL_FRACTION*estimated_char_bounding_size.height ()),
+						int (MIN_OFFSET_TO_START_SCROLL_MIN_PIXELS));
+	    estimated_scroll_step_offset = qMax (int (SCROLL_STEP_FRACTION*estimated_char_bounding_size.height ()),
+						 int (SCROLL_STEP_MIN_PIXELS));
+	    estimated_minute_add_rect = QRect (half_w - estimated_char_bounding_size.width (),
+					       current_rect.height () - estimated_char_bounding_size.height () -
+					       estimated_arrow_bounding_size.width ()*2,
+					       estimated_char_bounding_size.width ()*2,
+					       estimated_arrow_bounding_size.width ()*2);
+	    estimated_minute_subtract_rect = QRect (half_w - estimated_char_bounding_size.width (),
+						    current_rect.height () - estimated_arrow_bounding_size.width ()*2,
+						    estimated_char_bounding_size.width ()*2,
+						    estimated_arrow_bounding_size.width ()*2);
+	    int base_y_start = current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ();
+	    estimated_digits_rect = QRect (half_w - estimated_char_bounding_size.width ()*3 - estimated_separator_bounding_size.width ()*2,
+					   base_y_start,
+					   estimated_char_bounding_size.width ()*6 + estimated_separator_bounding_size.width ()*4,
+					   estimated_char_bounding_size.height ());
 	}
     } break;
     case 2: {
 	QPainter p (&estimation_picture);
 	p.setFont (font);
 	QRect fake_rect (0, 0, 0, 0);
-	QString text = value.toString ("hh:mm:ss");
 	QRect current_rect = rect ();
 	QSize current_size = current_rect.size ();
 	if (current_size != estimated_size) {
@@ -221,7 +297,6 @@ void DigitalTimer::resizeEvent (QResizeEvent*)
 	QPainter p (&estimation_picture);
 	p.setFont (font);
 	QRect fake_rect (0, 0, 0, 0);
-	QString text = value.toString ("hh:mm:ss");
 	QRect current_rect = rect ();
 	QSize current_size = current_rect.size ();
 	if (current_size != estimated_size) {
@@ -281,7 +356,6 @@ void DigitalTimer::resizeEvent (QResizeEvent*)
 	QPainter p (&estimation_picture);
 	p.setFont (font);
 	QRect fake_rect (0, 0, 0, 0);
-	QString text = value.toString ("hh:mm:ss");
 	QRect current_rect = rect ();
 	QSize current_size = current_rect.size ();
 	if (current_size != estimated_size) {
@@ -344,6 +418,7 @@ void DigitalTimer::mouseMoveEvent (QMouseEvent *event)
     emit userIsAlive ();
     const QPoint &pos = event->pos ();
     switch (button_pressed) {
+    case LeaveAreaPressed:
     case AddMinutePressed:
     case SubtractMinutePressed:	{
 	int dy = pos.y () - button_pressed_point.y ();
@@ -357,15 +432,13 @@ void DigitalTimer::mouseMoveEvent (QMouseEvent *event)
 	    vertical_scroll_accum += previous_point.y () - pos.y ();
 	if (vertical_scroll_accum > 0) {
 	    while (vertical_scroll_accum >= estimated_scroll_step_offset) {
-		if (addMinuteSharp ())
-		    emit timeChanged (value);
+		addMinuteSharp ();
 		vertical_scroll_accum -= estimated_scroll_step_offset;
 	    }
 	}
 	if (vertical_scroll_accum < 0) {
 	    while (vertical_scroll_accum <= -estimated_scroll_step_offset) {
-		if (subtractMinuteSharp ())
-		    emit timeChanged (value);
+		subtractMinuteSharp ();
 		vertical_scroll_accum += estimated_scroll_step_offset;
 	    }
 	}
@@ -390,10 +463,13 @@ void DigitalTimer::mousePressEvent (QMouseEvent *event)
 		} else if (estimated_minute_subtract_rect.contains (pos)) {
 		    button_pressed = SubtractMinutePressed;
 		    button_pressed_rect = estimated_minute_subtract_rect;
-		} else {
+		} else if (estimated_digits_rect.contains (pos)) {
 		    button_pressed = ScrollMinutePressed;
 		    button_pressed_rect = rect ();
 		    vertical_scroll_accum = 0;
+		} else {
+		    button_pressed = LeaveAreaPressed;
+		    button_pressed_rect = estimated_digits_rect;
 		}
 		button_pressed_point = pos;
 		previous_point = pos;
@@ -411,15 +487,16 @@ void DigitalTimer::mouseReleaseEvent (QMouseEvent *event)
     if (event->button () == Qt::LeftButton) {
 	emit lmb_released ();
 	const QPoint &pos = event->pos ();
-	if ((button_pressed != NonePressed) && button_pressed_rect.contains (pos)) {
+	if (button_pressed == LeaveAreaPressed) {
+	    if (!estimated_digits_rect.contains (pos))
+		emit leaveEditModeRequested ();
+	} else if ((button_pressed != NonePressed) && button_pressed_rect.contains (pos)) {
 	    switch (button_pressed) {
 	    case AddMinutePressed: {
-		if (addMinuteSharp ())
-		    emit timeChanged (value);
+		addMinuteSharp ();
 	    } break;
 	    case SubtractMinutePressed: {
-		if (subtractMinuteSharp ())
-		    emit timeChanged (value);
+		subtractMinuteSharp ();
 	    } break;
 	    default: {
 	    } break;
@@ -432,8 +509,8 @@ void DigitalTimer::mouseReleaseEvent (QMouseEvent *event)
 QSize DigitalTimer::charBoundingSize (QPainter &p)
 {
     QRect fake_rect (0, 0, 0, 0);
-    QSize max_size = p.boundingRect (fake_rect, TEXT_FLAGS, ":").size ();
-    for (int digit = 0; digit < 10; ++digit)
+    QSize max_size = p.boundingRect (fake_rect, TEXT_FLAGS, "0").size ();
+    for (int digit = 1; digit < 10; ++digit)
 	max_size = max_size.expandedTo (p.boundingRect (fake_rect, TEXT_FLAGS, QString::number (digit)).size ());
     return max_size;
 }
@@ -447,6 +524,8 @@ QSize DigitalTimer::separatorBoundingSize (QPainter &p)
 }
 void DigitalTimer::paintEvent (QPaintEvent*)
 {
+    Timer *timer = app_manager->getCurrentTimer ();
+    QTime value = timer->getTimeLeft ();
     QPainter p (this);
     if (KITCHENTIMER_SHOW_DEBUG_OVERLAY) {
 	p.save ();
@@ -465,85 +544,137 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	p.setPen (text_color);
 
 	const QRect &current_rect = rect ();
-	int secs = QTime (0, 0, 0).secsTo (value);
-	QPoint base_point ((current_rect.width () - estimated_char_bounding_size.width ()*8)/2,
-			   current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
+ 	int base_y_start = current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ();
 	{
-	    base_point = QPoint ((current_rect.width () - estimated_char_bounding_size.width ()*6)/2 - estimated_separator_bounding_size.width ()*2,
-				 current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
+	    QPoint base_point = QPoint ((current_rect.width () - estimated_char_bounding_size.width ()*6)/2
+					- estimated_separator_bounding_size.width ()*2,
+					base_y_start);
 	    for (int i = 0; i < 2; ++i) {
 		p.setPen (shadow_color);
 		p.setCompositionMode (QPainter::CompositionMode_Multiply);
 		p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
 			    hour_text.mid (i, 1));
-
 		p.setPen (text_color);
 		p.setCompositionMode (QPainter::CompositionMode_SourceOver);
 		p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
 			    hour_text.mid (i, 1));
-
 		base_point.setX (base_point.x () + estimated_char_bounding_size.width ());
 	    }
 	}
 	{
-	    base_point = QPoint ((current_rect.width () - estimated_char_bounding_size.width ()*4)/2 + estimated_separator_bounding_size.width ()/2,
-				 current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
-
+	    QPoint base_point = QPoint ((current_rect.width () - estimated_char_bounding_size.width ()*4)/2
+					+ estimated_separator_bounding_size.width ()/2,
+					base_y_start);
 	    p.setPen (shadow_color);
 	    p.setCompositionMode (QPainter::CompositionMode_Multiply);
 	    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
-
 	    p.setPen (text_color);
 	    p.setCompositionMode (QPainter::CompositionMode_SourceOver);
 	    p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
 	}
 	{
-	    base_point = QPoint ((current_rect.width () - estimated_char_bounding_size.width ()*2)/2,
-				 current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
+	    QPoint base_point = QPoint ((current_rect.width () - estimated_char_bounding_size.width ()*2)/2,
+					base_y_start);
 	    for (int i = 0; i < 2; ++i) {
 		p.setPen (shadow_color);
 		p.setCompositionMode (QPainter::CompositionMode_Multiply);
 		p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
 			    minute_text.mid (i, 1));
-
 		p.setPen (text_color);
 		p.setCompositionMode (QPainter::CompositionMode_SourceOver);
 		p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
 			    minute_text.mid (i, 1));
-
 		base_point.setX (base_point.x () + estimated_char_bounding_size.width ());
 	    }
 	}
 	{
-	    base_point = QPoint ((current_rect.width () + estimated_char_bounding_size.width ()*2)/2 - estimated_separator_bounding_size.width ()/2,
-				 current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
-
+	    QPoint base_point = QPoint ((current_rect.width () + estimated_char_bounding_size.width ()*2)/2
+					- estimated_separator_bounding_size.width ()/2,
+					base_y_start);
 	    p.setPen (shadow_color);
 	    p.setCompositionMode (QPainter::CompositionMode_Multiply);
 	    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
-
 	    p.setPen (text_color);
 	    p.setCompositionMode (QPainter::CompositionMode_SourceOver);
 	    p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
 	}
 	{
-	    base_point = QPoint ((current_rect.width () + estimated_char_bounding_size.width ()*2)/2 + estimated_separator_bounding_size.width ()*2,
-				 current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
+	    QPoint base_point = QPoint ((current_rect.width () + estimated_char_bounding_size.width ()*2)/2
+					+ estimated_separator_bounding_size.width ()*2,
+					base_y_start);
 	    for (int i = 0; i < 2; ++i) {
 		p.setPen (shadow_color);
 		p.setCompositionMode (QPainter::CompositionMode_Multiply);
 		p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
 			    second_text.mid (i, 1));
-
 		p.setPen (text_color);
 		p.setCompositionMode (QPainter::CompositionMode_SourceOver);
 		p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
 			    second_text.mid (i, 1));
-
 		base_point.setX (base_point.x () + estimated_char_bounding_size.width ());
 	    }
 	}
-	if (!edit_mode) {
+	if (timer->isRunning ()) { // Period
+	    double font_scale = 0.9;
+	    p.save ();
+	    font2.setPixelSize (estimated_font_size*font_scale);
+	    p.setFont (font2);
+	    int base_y_start = current_rect.height () - estimated_char_bounding_size.height ()*1.8 - estimated_arrow_bounding_size.width ();
+	    QTime value = timer->getPeriod ();
+	    QString hour_text = value.toString ("hh");
+	    QString minute_text = value.toString ("mm");
+	    QString second_text = value.toString ("ss");
+	    QColor shadow_color (0xbb, 0x9b, 0x79, 0xee);
+	    p.setPen (shadow_color);
+	    {
+		QPoint base_point = QPoint ((current_rect.width () - estimated_char_bounding_size.width ()*font_scale*6)/2
+					    - estimated_separator_bounding_size.width ()*font_scale*2,
+					    base_y_start);
+		for (int i = 0; i < 2; ++i) {
+		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size*font_scale), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+				hour_text.mid (i, 1));
+		    base_point.setX (base_point.x () + estimated_char_bounding_size.width ()*font_scale);
+		}
+	    }
+	    {
+		QPoint base_point = QPoint ((current_rect.width () - estimated_char_bounding_size.width ()*font_scale*4)/2
+					    + estimated_separator_bounding_size.width ()*font_scale/2,
+					    base_y_start);
+		p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size*font_scale), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
+	    }
+	    {
+		QPoint base_point = QPoint ((current_rect.width () - estimated_char_bounding_size.width ()*font_scale*2)/2,
+					    base_y_start);
+		for (int i = 0; i < 2; ++i) {
+		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size*font_scale), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+				minute_text.mid (i, 1));
+		    base_point.setX (base_point.x () + estimated_char_bounding_size.width ()*font_scale);
+		}
+	    }
+	    {
+		QPoint base_point = QPoint ((current_rect.width () + estimated_char_bounding_size.width ()*font_scale*2)/2
+					    - estimated_separator_bounding_size.width ()*font_scale/2,
+					    base_y_start);
+		p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size*font_scale), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
+	    }
+	    {
+		QPoint base_point = QPoint ((current_rect.width () + estimated_char_bounding_size.width ()*font_scale*2)/2
+					    + estimated_separator_bounding_size.width ()*font_scale*2,
+					    base_y_start);
+		for (int i = 0; i < 2; ++i) {
+		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size*font_scale), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+				second_text.mid (i, 1));
+		    base_point.setX (base_point.x () + estimated_char_bounding_size.width ()*font_scale);
+		}
+	    }
+	    p.restore ();
+	}
+	if (!edit_mode) { // "hour min sec"
 	    p.save ();
 	    font2.setPixelSize (estimated_font_size*0.5);
 	    p.setFont (font2);
@@ -569,9 +700,316 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 
 	    p.restore ();
 	}
-	base_point = QPoint (current_rect.width ()/2,
-			     current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
 	if (edit_mode) {
+	    QPoint base_point = QPoint (current_rect.width ()/2,
+					current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
+	    int alpha = 0xff;
+	    if (edit_mode_elapsed_timer.isValid ()) {
+		int elapsed = edit_mode_elapsed_timer.elapsed ();
+		if (elapsed >= unblock_timeout) {
+		    edit_mode_elapsed_timer.invalidate ();
+		} else {
+		    alpha = (0xff*elapsed)/unblock_timeout;
+		    alpha = (alpha > 0xff) ? 0xff : alpha;
+		}
+	    }
+	    QColor basic_color (0xd5, 0x92, 0x4b, alpha);
+	    QColor pressed_color (0x16, 0x83, 0x87, alpha);
+	    {
+		QTransform tr;
+		tr.translate (base_point.x (), base_point.y ());
+		tr.scale (0.75, 0.75);
+		tr.translate (-estimated_arrow_bounding_size.height ()/2, 0);
+		tr.rotate (-90);
+		tr.translate (-base_point.x (), -base_point.y ());
+		p.setTransform (tr);
+		p.setPen (((button_pressed == AddMinutePressed) || (button_pressed == ScrollMinutePressed)) ? pressed_color : basic_color);
+		p.drawText (QRect (base_point, estimated_arrow_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ">");
+	    }
+	    {
+		QTransform tr;
+		tr.translate (base_point.x (), base_point.y ());
+		tr.scale (0.75, 0.75);
+		tr.translate (-estimated_arrow_bounding_size.height ()/2,
+			      estimated_char_bounding_size.height () + estimated_arrow_bounding_size.width ());
+		tr.rotate (-90);
+		tr.scale (-1.0, 1.0);
+		tr.translate (-base_point.x (), -base_point.y ());
+		p.setTransform (tr);
+		p.setPen (((button_pressed == SubtractMinutePressed) || (button_pressed == ScrollMinutePressed)) ? pressed_color : basic_color);
+		p.drawText (QRect (base_point, estimated_arrow_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ">");
+	    }
+	}
+    } break;
+    case 1: {
+	QString hour_text = value.toString ("hh");
+	QString minute_text = value.toString ("mm");
+	QString second_text = value.toString ("ss");
+	QString next_second_text = QString ().sprintf ("%02d", (value.second () + 1)%60);
+	QColor text_color (QColor (0xff, 0xff, 0xfd));
+	QColor shadow_color (0xbb, 0x9b, 0x79);
+	p.setPen (text_color);
+
+	const QRect &current_rect = rect ();
+	int base_y_start = current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ();
+	{ // Hours
+	    QPoint base_point = QPoint ((current_rect.width () - estimated_char_bounding_size.width ()*6)/2
+					- estimated_separator_bounding_size.width ()*2,
+					base_y_start);
+	    for (int i = 0; i < 2; ++i) {
+		p.setPen (shadow_color);
+		p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+			    hour_text.mid (i, 1));
+		p.setPen (text_color);
+		p.setCompositionMode (QPainter::CompositionMode_SourceOver);
+		p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+			    hour_text.mid (i, 1));
+		base_point.setX (base_point.x () + estimated_char_bounding_size.width ());
+	    }
+	}
+	{ // ":"
+	    QPoint base_point = QPoint ((current_rect.width () - estimated_char_bounding_size.width ()*4)/2
+					+ estimated_separator_bounding_size.width ()/2,
+					base_y_start);
+	    p.setPen (shadow_color);
+	    p.setCompositionMode (QPainter::CompositionMode_Multiply);
+	    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
+	    p.setPen (text_color);
+	    p.setCompositionMode (QPainter::CompositionMode_SourceOver);
+	    p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
+	}
+	{ // Minutes
+	    QPoint base_point = QPoint ((current_rect.width () - estimated_char_bounding_size.width ()*2)/2,
+					base_y_start);
+	    for (int i = 0; i < 2; ++i) {
+		p.setPen (shadow_color);
+		p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+			    minute_text.mid (i, 1));
+		p.setPen (text_color);
+		p.setCompositionMode (QPainter::CompositionMode_SourceOver);
+		p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+			    minute_text.mid (i, 1));
+		base_point.setX (base_point.x () + estimated_char_bounding_size.width ());
+	    }
+	}
+	{ // ":"
+	    QPoint base_point = QPoint ((current_rect.width () + estimated_char_bounding_size.width ()*2)/2
+					- estimated_separator_bounding_size.width ()/2,
+					base_y_start);
+	    p.setPen (shadow_color);
+	    p.setCompositionMode (QPainter::CompositionMode_Multiply);
+	    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
+	    p.setPen (text_color);
+	    p.setCompositionMode (QPainter::CompositionMode_SourceOver);
+	    p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
+	}
+	int msec = value.msec ();
+	if (timer->isRunning ()) {
+	    if (msec < 400) { // Seconds
+		double factor = msec/400.0;
+		QColor c1 (shadow_color);
+		c1.setAlpha (factor*255.0);
+		QColor c2 (text_color);
+		c2.setAlpha (factor*255.0);
+		QPoint base_point = QPoint ((current_rect.width () + estimated_char_bounding_size.width ()*2)/2
+					    + estimated_separator_bounding_size.width ()*2,
+					    base_y_start);
+		{
+		    QTransform tr;
+		    int dx = base_point.x () + estimated_char_bounding_size.width ()/2;
+		    int dy = base_point.y () + estimated_char_bounding_size.height ()/2;
+		    tr.translate (dx, dy);
+		    double scale = factor*0.2 + 0.7;
+		    tr.scale (scale, scale);
+		    tr.translate (-dx, -dy);
+		    p.setWorldTransform (tr);
+		    p.setPen (c1);
+		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+				second_text.mid (0, 1));
+		    p.setPen (c2);
+		    p.setCompositionMode (QPainter::CompositionMode_SourceOver);
+		    p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+				second_text.mid (0, 1));
+		    p.resetTransform ();
+		    base_point.setX (base_point.x () + estimated_char_bounding_size.width ());
+		}
+		{
+		    QTransform tr;
+		    int dx = base_point.x () + estimated_char_bounding_size.width ()/2;
+		    int dy = base_point.y () + estimated_char_bounding_size.height ()/2;
+		    tr.translate (dx, dy);
+		    double scale = factor*0.2 + 0.7;
+		    tr.scale (scale, scale);
+		    tr.translate (-dx, -dy);
+		    p.setWorldTransform (tr);
+		    p.setPen (c1);
+		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+				second_text.mid (1, 1));
+		    p.setPen (c2);
+		    p.setCompositionMode (QPainter::CompositionMode_SourceOver);
+		    p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+				second_text.mid (1, 1));
+		    p.resetTransform ();
+		}
+	    } else { // Next second
+		QColor c1 (shadow_color);
+		c1.setAlpha (value.msec ()*0.001*255.0);
+		QColor c2 (text_color);
+		c2.setAlpha (value.msec ()*0.001*255.0);
+		QPoint base_point = QPoint ((current_rect.width () + estimated_char_bounding_size.width ()*2)/2
+					    + estimated_separator_bounding_size.width ()*2,
+					    base_y_start);
+		QEasingCurve curve (QEasingCurve::InElastic);
+		double scale = 1.0 - curve.valueForProgress ((msec - 600)/600.0);
+		{
+		    QTransform tr;
+		    int dx = base_point.x () + estimated_char_bounding_size.width ()/2;
+		    int dy = base_point.y () + estimated_char_bounding_size.height ()/2;
+		    tr.translate (dx, dy);
+		    tr.scale (scale, scale);
+		    tr.translate (-dx, -dy);
+		    p.setWorldTransform (tr);
+		    p.setPen (shadow_color);
+		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+				second_text.mid (0, 1));
+		    p.setPen (text_color);
+		    p.setCompositionMode (QPainter::CompositionMode_SourceOver);
+		    p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+				second_text.mid (0, 1));
+		    p.resetTransform ();
+		    base_point.setX (base_point.x () + estimated_char_bounding_size.width ());
+		}
+		{
+		    QTransform tr;
+		    int dx = base_point.x () + estimated_char_bounding_size.width ()/2;
+		    int dy = base_point.y () + estimated_char_bounding_size.height ()/2;
+		    tr.translate (dx, dy);
+		    tr.scale (scale, scale);
+		    tr.translate (-dx, -dy);
+		    p.setWorldTransform (tr);
+		    p.setPen (shadow_color);
+		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+				second_text.mid (1, 1));
+		    p.setPen (text_color);
+		    p.setCompositionMode (QPainter::CompositionMode_SourceOver);
+		    p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+				second_text.mid (1, 1));
+		    p.resetTransform ();
+		}
+	    }
+	} else {
+	    {
+		QPoint base_point = QPoint ((current_rect.width () + estimated_char_bounding_size.width ()*2)/2
+					    + estimated_separator_bounding_size.width ()*2,
+					    base_y_start);
+		for (int i = 0; i < 2; ++i) {
+		    p.setPen (shadow_color);
+		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+				second_text.mid (i, 1));
+		    p.setPen (text_color);
+		    p.setCompositionMode (QPainter::CompositionMode_SourceOver);
+		    p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+				second_text.mid (i, 1));
+		    base_point.setX (base_point.x () + estimated_char_bounding_size.width ());
+		}
+	    }
+	}
+	if (timer->isRunning ()) { // Period
+	    double font_scale = 0.9;
+	    p.save ();
+	    font2.setPixelSize (estimated_font_size*font_scale);
+	    p.setFont (font2);
+	    int base_y_start = current_rect.height () - estimated_char_bounding_size.height ()*1.8 - estimated_arrow_bounding_size.width ();
+	    QTime value = timer->getPeriod ();
+	    QString hour_text = value.toString ("hh");
+	    QString minute_text = value.toString ("mm");
+	    QString second_text = value.toString ("ss");
+	    QColor shadow_color (0xbb, 0x9b, 0x79, 0xee);
+	    p.setPen (shadow_color);
+	    {
+		QPoint base_point = QPoint ((current_rect.width () - estimated_char_bounding_size.width ()*font_scale*6)/2
+					    - estimated_separator_bounding_size.width ()*font_scale*2,
+					    base_y_start);
+		for (int i = 0; i < 2; ++i) {
+		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size*font_scale), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+				hour_text.mid (i, 1));
+		    base_point.setX (base_point.x () + estimated_char_bounding_size.width ()*font_scale);
+		}
+	    }
+	    {
+		QPoint base_point = QPoint ((current_rect.width () - estimated_char_bounding_size.width ()*font_scale*4)/2
+					    + estimated_separator_bounding_size.width ()*font_scale/2,
+					    base_y_start);
+		p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size*font_scale), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
+	    }
+	    {
+		QPoint base_point = QPoint ((current_rect.width () - estimated_char_bounding_size.width ()*font_scale*2)/2,
+					    base_y_start);
+		for (int i = 0; i < 2; ++i) {
+		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size*font_scale), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+				minute_text.mid (i, 1));
+		    base_point.setX (base_point.x () + estimated_char_bounding_size.width ()*font_scale);
+		}
+	    }
+	    {
+		QPoint base_point = QPoint ((current_rect.width () + estimated_char_bounding_size.width ()*font_scale*2)/2
+					    - estimated_separator_bounding_size.width ()*font_scale/2,
+					    base_y_start);
+		p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size*font_scale), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
+	    }
+	    {
+		QPoint base_point = QPoint ((current_rect.width () + estimated_char_bounding_size.width ()*font_scale*2)/2
+					    + estimated_separator_bounding_size.width ()*font_scale*2,
+					    base_y_start);
+		for (int i = 0; i < 2; ++i) {
+		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
+		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size*font_scale), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+				second_text.mid (i, 1));
+		    base_point.setX (base_point.x () + estimated_char_bounding_size.width ()*font_scale);
+		}
+	    }
+	    p.restore ();
+	}
+	if (!edit_mode) { // "hour min sec"
+	    p.save ();
+	    font2.setPixelSize (estimated_font_size*0.5);
+	    p.setFont (font2);
+
+	    p.setCompositionMode (QPainter::CompositionMode_Multiply);
+	    p.setPen (QColor (0xbb, 0x9b, 0x79));
+
+	    p.drawText (QRect (current_rect.x () - estimated_char_bounding_size.width ()*2 - estimated_separator_bounding_size.width ()*2,
+			       current_rect.y (),
+			       current_rect.width (),
+			       current_rect.height ()),
+			Qt::AlignBottom | Qt::AlignHCenter | Qt::TextDontClip, "час");
+
+	    p.drawText (QRect (current_rect.x (), current_rect.y (),
+			       current_rect.width (), current_rect.height ()),
+			Qt::AlignBottom | Qt::AlignHCenter | Qt::TextDontClip, "мин");
+
+	    p.drawText (QRect (current_rect.x () + estimated_char_bounding_size.width ()*2 + estimated_separator_bounding_size.width ()*2,
+			       current_rect.y (),
+			       current_rect.width (),
+			       current_rect.height ()),
+			Qt::AlignBottom | Qt::AlignHCenter | Qt::TextDontClip, "сек");
+
+	    p.restore ();
+	}
+	if (edit_mode) {
+	    QPoint base_point = QPoint (current_rect.width ()/2,
+					current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
 	    int alpha = 0xff;
 	    if (edit_mode_elapsed_timer.isValid ()) {
 		int elapsed = edit_mode_elapsed_timer.elapsed ();
@@ -619,7 +1057,6 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	p.setPen (text_color);
 
 	const QRect &current_rect = rect ();
-	int secs = QTime (0, 0, 0).secsTo (value);
 	QPoint base_point ((current_rect.width () - estimated_char_bounding_size.width ()*8)/2,
 			   current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
 	{
@@ -771,7 +1208,6 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	p.setPen (QColor (0xff, 0xff, 0xfd));
 
 	const QRect &current_rect = rect ();
-	int secs = QTime (0, 0, 0).secsTo (value);
 	QPoint base_point ((current_rect.width () - estimated_char_bounding_size.width ()*8)/2,
 			   current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
 	{
@@ -859,7 +1295,6 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	p.setPen (QColor (0xff, 0xff, 0xfd));
 
 	const QRect &current_rect = rect ();
-	int secs = QTime (0, 0, 0).secsTo (value);
 	QPoint base_point ((current_rect.width () - estimated_char_bounding_size.width ()*8)/2,
 			   current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
 	{
@@ -1031,16 +1466,10 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	p.drawRect (estimated_minute_add_rect);
 	p.setBrush (QColor (0, 0x88, 0xff, 60));
 	p.drawRect (estimated_minute_subtract_rect);
+	p.setBrush (QColor (0, 0x00, 0xff, 60));
+	p.drawRect (estimated_digits_rect);
+	p.setBrush (QColor (0x22, 0x88, 0xff, 200));
+	p.drawRect (QRect (QPoint (0, 0), estimated_char_bounding_size));
 	p.restore ();
-    }
-}
-void DigitalTimer::checkUpdate ()
-{
-    repaint ();
-    if (edit_mode_elapsed_timer.isValid () && (edit_mode_elapsed_timer.elapsed () < unblock_timeout)) {
-	repaint_timer.start (KITCHENTIMER_ANIMATION_REPAINT_TIMEOUT_MS);
-    } else {
-	edit_mode_elapsed_timer.invalidate ();
-	update ();
     }
 }

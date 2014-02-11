@@ -1,5 +1,9 @@
+// -*- mode: c++ -*-
+
 #ifndef DIGITALTIMER_H
 #define DIGITALTIMER_H
+
+#include "animator.h"
 
 #include <QLabel>
 #include <QTime>
@@ -16,8 +20,6 @@ public:
     ~DigitalTimer ();
     void enterEditMode (int);
     void leaveEditMode ();
-    void setTime (const QTime&);
-    void updateTime ();
 
 protected:    
     void resizeEvent (QResizeEvent*);
@@ -33,12 +35,10 @@ private:
     bool addMinuteSharp ();
     bool subtractMinuteSharp ();
 
-private slots:
-    void checkUpdate ();
-
 private:
     enum ButtonPressed {
 	NonePressed,
+	LeaveAreaPressed,
 	AddMinutePressed,
 	SubtractMinutePressed,
 	ScrollMinutePressed,
@@ -46,7 +46,7 @@ private:
 
     QFont font;
     QFont font2;
-    QTime value;
+    Animator animator;
     bool edit_mode;
     QElapsedTimer edit_mode_elapsed_timer;
     int unblock_timeout;
@@ -55,6 +55,8 @@ private:
     QPoint button_pressed_point;
     QPoint previous_point;
     int vertical_scroll_accum;
+    QPoint animation_center;
+
     QPicture estimation_picture;
     QSize estimated_size;
     int estimated_font_size;
@@ -65,12 +67,11 @@ private:
     int estimated_scroll_step_offset;
     QRect estimated_minute_add_rect;
     QRect estimated_minute_subtract_rect;
-    QTimer repaint_timer;
-    QPoint animation_center;
+    QRect estimated_digits_rect;
 
 signals:
     void enterEditModeRequested ();
-    void timeChanged (const QTime&);
+    void leaveEditModeRequested ();
     void lmb_pressed ();
     void lmb_released ();
     void userIsAlive ();

@@ -27,13 +27,12 @@ PageTimers::PageTimers (QWidget *parent)
     {
 	digital_timer = new DigitalTimer (this);
 	connect (digital_timer, SIGNAL (enterEditModeRequested ()), this, SLOT (enterEditMode ()));
-	connect (digital_timer, SIGNAL (timeChanged (const QTime&)), this, SLOT (digitalTimeChanged (const QTime&)));
+	connect (digital_timer, SIGNAL (leaveEditModeRequested ()), this, SLOT (leaveEditMode ()));
 	layout->addWidget (digital_timer, 1, 1);
     }
 
     {
 	analog_timer = new AnalogTimer (this);
-	connect (analog_timer, SIGNAL (timeChanged (const QTime&)), this, SLOT (analogTimeChanged (const QTime&)));
 	connect (analog_timer, SIGNAL (clearAlarms ()), this, SLOT (clearCurrentAlarms ()));
 	connect (analog_timer, SIGNAL (enterEditModeRequested ()), this, SLOT (enterEditModePressed ()));
 	connect (analog_timer, SIGNAL (leaveEditModeRequested ()), this, SLOT (leaveEditMode ()));
@@ -78,7 +77,6 @@ PageTimers::PageTimers (QWidget *parent)
 
     updateContent ();
 
-    connect (&update_timer, SIGNAL (timeout ()), this, SLOT (updateContent ()));
     update_timer.setInterval (100);
     update_timer.setSingleShot (false);
     update_timer.start ();
@@ -98,38 +96,10 @@ PageTimers::~PageTimers ()
 }
 void PageTimers::updateContent ()
 {
-    if (!analog_timer->isSliderDown ()) {
-	Timer *current_timer = app_manager->getCurrentTimer ();
-	QTime tm = current_timer->getTimeLeft ();
-	digital_timer->setTime (current_timer->getTimeLeft ());
-	analog_timer->setTime (current_timer->getTimeLeft ());
-    }
 }
 void PageTimers::resizeEvent (QResizeEvent*)
 {
     button_stick->adjustGeometry (rect ());
-}
-void PageTimers::dialValueChanged (int new_period_sec)
-{
-    dial_value = QTime (0, 0, 0).addSecs (new_period_sec);
-    digital_timer->setTime (dial_value);
-}
-void PageTimers::analogTimeChanged (const QTime &new_time)
-{
-    dial_value = new_time;
-    digital_timer->setTime (dial_value);
-    currentTimerAdjusted ();
-}
-void PageTimers::digitalTimeChanged (const QTime &new_time)
-{
-    dial_value = new_time;
-    analog_timer->setTime (dial_value);
-    currentTimerAdjusted ();
-}
-void PageTimers::currentTimerAdjusted ()
-{
-    Timer *current_timer = app_manager->getCurrentTimer ();
-    current_timer->setTimeLeft (dial_value);
 }
 void PageTimers::clearCurrentAlarms ()
 {

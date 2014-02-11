@@ -3,6 +3,8 @@
 #ifndef BACKGROUND_H
 #define BACKGROUND_H
 
+#include "animator.h"
+
 #include <QWidget>
 #include <QElapsedTimer>
 #include <QTimer>
@@ -22,14 +24,9 @@ protected:
     void mouseReleaseEvent (QMouseEvent*);
     void paintEvent (QPaintEvent*);
 
-private slots:
-    void checkUpdate ();
-
 private:
-    int transition_timeout;
+    Animator animator;
     bool shaded;
-    QElapsedTimer elapsed_timer;
-    QTimer repaint_timer;
 
 signals:
     void pressed ();

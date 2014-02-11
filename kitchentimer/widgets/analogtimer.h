@@ -3,7 +3,9 @@
 #ifndef ANALOGTIMER_H
 #define ANALOGTIMER_H
 
-#include <QDial>
+#include "animator.h"
+#include "editmode.h"
+
 #include <QTime>
 #include <QElapsedTimer>
 #include <QTimer>
@@ -15,13 +17,11 @@ class AnalogTimer: public QWidget
     Q_OBJECT
 
 public:
-    AnalogTimer (QWidget*);
+    AnalogTimer (QWidget* = NULL);
     ~AnalogTimer ();
     void enterEditMode (int);
     void enterEditModePressed (int, int);
     void leaveEditMode ();
-    QTime getTime ();
-    void setTime (const QTime&);
     bool isSliderDown ();
     
 protected:
@@ -36,22 +36,18 @@ private:
     double getRotationByPos (const QPoint&, const QSize&);
 
 private slots:
-    void unblockEdit ();
-    void unhaltByTimeoutEdit ();
+    void unhaltEditByTimeout ();
 
 private:
     QFont font;
     QFont small_font;
+    Animator animator;
     QElapsedTimer lifetime_elapsed_timer;
-    bool edit_mode;
-    bool edit_blocked;
-    QTime time_value;
+    EditMode edit_mode;
     bool down;
     QTime pressed_time;
     double pressed_local_rotation;
     double previous_delta_rotation;
-    bool halted;
-    bool halted_by_timeout;
     QTime unhalt_by_timeout_time;
     double unhalt_by_timeout_local_rotation;
     QTimer leave_edit_mode_timer;
@@ -62,7 +58,6 @@ private:
     double estimated_font_pixel_size;
 
 signals:
-    void timeChanged (const QTime&);
     void clearAlarms ();
     void enterEditModeRequested ();
     void leaveEditModeRequested ();

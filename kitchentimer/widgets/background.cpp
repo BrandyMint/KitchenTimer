@@ -4,13 +4,12 @@
 #include <QPainter>
 #include <QMouseEvent>
 
+#define ANIMATION_MIN_FRAME_TIMEOUT 10
+
 
 Background::Background (QWidget *parent)
-    : QWidget (parent), transition_timeout (0), shaded (false)
+    : QWidget (parent), animator (this, ANIMATION_MIN_FRAME_TIMEOUT), shaded (false)
 {
-    elapsed_timer.invalidate ();
-    repaint_timer.setSingleShot (true);
-    connect (&repaint_timer, SIGNAL (timeout ()), this, SLOT (checkUpdate ()));
 }
 void Background::mousePressEvent (QMouseEvent *event)
 {
@@ -49,65 +48,35 @@ void Background::paintEvent (QPaintEvent*)
     p.drawImage (dst_rect, resource_manager->background_image, src_rect);
     if (shaded) {
 	p.setPen (Qt::NoPen);
-	if (elapsed_timer.isValid ()) {
-	    int elapsed = elapsed_timer.elapsed ();
-	    if (elapsed >= transition_timeout) {
-		elapsed_timer.invalidate ();
-		p.setBrush (QColor (0, 0, 0, 192));
-	    } else {
-		double m = double (elapsed)/transition_timeout;
-		p.setBrush (QColor (0, 0, 0, int (m*192)));
-	    }
+	if (animator.isRunning ()) {
+	    p.setBrush (QColor (0, 0, 0, int (animator.phase ()*192)));
 	} else {
 	    p.setBrush (QColor (0, 0, 0, 192));
 	}
 	p.drawRect (dst_rect);
     } else {
-	if (elapsed_timer.isValid ()) {
-	    int elapsed = elapsed_timer.elapsed ();
-	    if (elapsed >= transition_timeout) {
-		elapsed_timer.invalidate ();
-	    } else {
-		double m = 1.0 - double (elapsed)/transition_timeout;
-		p.setPen (Qt::NoPen);
-		p.setBrush (QColor (0, 0, 0, int (m*192)));
-		p.drawRect (dst_rect);
-	    }
+	if (animator.isRunning ()) {
+	    p.setPen (Qt::NoPen);
+	    p.setBrush (QColor (0, 0, 0, int (animator.phase ()*192)));
+	    p.drawRect (dst_rect);
 	}
     }
 }
 void Background::setShaded (bool new_shaded)
 {
     shaded = new_shaded;
-    elapsed_timer.invalidate ();
+    animator.stop ();
     update ();
 }
-void Background::startShading (int new_transition_timeout)
+void Background::startShading (int transition_timeout)
 {
-    transition_timeout = new_transition_timeout;
-    elapsed_timer.start ();
-    repaint_timer.start (KITCHENTIMER_ANIMATION_REPAINT_TIMEOUT_MS);
+    animator.start (transition_timeout);
     shaded = true;
     update ();
 }
-void Background::startUnshading (int new_transition_timeout)
+void Background::startUnshading (int transition_timeout)
 {
-    transition_timeout = new_transition_timeout;
-    elapsed_timer.start ();
+    animator.start (transition_timeout);
     shaded = false;
     update ();
-}
-void Background::checkUpdate ()
-{
-    repaint ();
-    if (elapsed_timer.isValid () && (elapsed_timer.elapsed () < transition_timeout)) {
-	repaint_timer.start (KITCHENTIMER_ANIMATION_REPAINT_TIMEOUT_MS);
-    } else {
-	elapsed_timer.invalidate ();
-	if (shaded)
-	    emit shadingDone ();
-	else
-	    emit unshadingDone ();
-	update ();
-    }
 }

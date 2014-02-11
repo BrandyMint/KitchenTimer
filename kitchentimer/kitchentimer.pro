@@ -31,6 +31,8 @@ HEADERS += configuration.h \
            referenceitem.h \
            referencemodel.h \
            alarmsequencer.h \
+           animator.h \
+           editmode.h \
            widgets/analogtimer.h \
            widgets/clickablelabel.h \
            widgets/digitaltimer.h \
@@ -51,6 +53,8 @@ SOURCES += main.cpp \
            referenceitem.cpp \
            referencemodel.cpp \
            alarmsequencer.cpp \
+           animator.cpp \
+           editmode.cpp \
            widgets/analogtimer.cpp \
            widgets/clickablelabel.cpp \
            widgets/digitaltimer.cpp \

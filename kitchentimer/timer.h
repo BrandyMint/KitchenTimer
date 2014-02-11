@@ -6,6 +6,7 @@
 #include <QObject>
 #include <QTime>
 #include <QTimer>
+#include <QElapsedTimer>
 
 
 class Timer: public QObject
@@ -16,7 +17,7 @@ public:
     Timer (const QTime&, const QString&);
     const QTime &getPeriod ();
     void setTimeLeft (const QTime&);
-    const QTime &getTimeLeft ();
+    QTime getTimeLeft ();
     void start ();
     void stop ();
     bool isRunning ();
@@ -34,6 +35,7 @@ private:
     bool running;
     QTimer main_timer;
     QTimer ticker;
+    QElapsedTimer elapsed_timer;
 
 signals:
     void updateTick ();

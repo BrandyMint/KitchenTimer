@@ -12,6 +12,7 @@
 Timer::Timer (const QTime &time_left, const QString &title)
     : period (0, 0, 0), time_left (time_left), title (title), running (false)
 {
+    elapsed_timer.invalidate ();
     connect (&main_timer, SIGNAL (timeout ()), this, SLOT (internalTimeout ()));
     connect (&ticker, SIGNAL (timeout ()), this, SLOT (internalTick ()));
 }
@@ -24,21 +25,26 @@ void Timer::setTimeLeft (const QTime &new_time_left)
     time_left = new_time_left;
     emit newTimeSet ();
 }
-const QTime &Timer::getTimeLeft ()
+QTime Timer::getTimeLeft ()
 {
-    return time_left;
+    if (running)
+	return QTime (0, 0, 0).addMSecs ((QTime (0, 0, 0).msecsTo (period)) - elapsed_timer.elapsed ());
+    else
+	return time_left;
 }
 void Timer::start ()
 {
     main_timer.setSingleShot (true);
     main_timer.start (QTime (0, 0, 0).msecsTo (time_left));
     period = time_left;
+    elapsed_timer.start ();
     running = true;
     ticker.start (100);
 }
 void Timer::stop ()
 {
     main_timer.stop ();
+    elapsed_timer.invalidate ();
     ticker.stop ();
     running = false;
 }

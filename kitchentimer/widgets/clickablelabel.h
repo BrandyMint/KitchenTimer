@@ -1,3 +1,5 @@
+// -*- mode: c++ -*-
+
 #ifndef CLICKABLELABEL_H
 #define CLICKABLELABEL_H
 

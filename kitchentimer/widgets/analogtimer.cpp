@@ -51,19 +51,18 @@ static double shortestRotation (double r1, double r2, bool &clock_wise)
     }
 }
 
+
+#define ANIMATION_MIN_FRAME_TIMEOUT 250
+
 AnalogTimer::AnalogTimer (QWidget *parent)
     : QWidget (parent),
       font (qApp->font ()),
       small_font (qApp->font ()),
-      edit_mode (false),
-      edit_blocked (false),
-      time_value (0, 0, 0),
+      animator (this, ANIMATION_MIN_FRAME_TIMEOUT),
       down (false),
       pressed_time (0, 0, 0),
       pressed_local_rotation (0.0),
       previous_delta_rotation (0.0),
-      halted (false),
-      halted_by_timeout (false),
       unhalt_by_timeout_time (0, 0, 0),
       unhalt_by_timeout_local_rotation (0.0),
       estimated_circle_rect (0, 0, 0, 0),
@@ -71,60 +70,41 @@ AnalogTimer::AnalogTimer (QWidget *parent)
       estimated_circle_radius (0.0)
 {
     lifetime_elapsed_timer.start ();
+    connect (app_manager->getCurrentTimer (), SIGNAL (timeout ()), this, SLOT (update ()));
+    connect (app_manager->getCurrentTimer (), SIGNAL (timeout ()), &animator, SLOT (stop ()));
     connect (app_manager->getCurrentTimer (), SIGNAL (newTimeSet ()), this, SLOT (update ()));
+    connect (&edit_mode, SIGNAL (unhaltedByTimeout ()), this, SLOT (unhaltEditByTimeout ()));
 }
 AnalogTimer::~AnalogTimer ()
 {
 }
 void AnalogTimer::enterEditMode (int unblock_timeout)
 {
-    edit_mode = true;
-    if (unblock_timeout > 0) {
-	edit_blocked = true;
-	QTimer::singleShot (unblock_timeout, this, SLOT (unblockEdit ()));
-    } else {
-	edit_blocked = false;
-    }
+    edit_mode.enter (unblock_timeout);
+    animator.stop ();
     update ();
 }
 void AnalogTimer::enterEditModePressed (int unblock_timeout, int unhalt_timeout)
 {
-    edit_mode = true;
+    edit_mode.enterPressed (unblock_timeout, unhalt_timeout);
     if (unblock_timeout > 0) {
-	edit_blocked = true;
-	QTimer::singleShot (unblock_timeout, this, SLOT (unblockEdit ()));
 	down = true;
-	pressed_time = time_value;
+	pressed_time = app_manager->getCurrentTimer ()->getTimeLeft ();
 	pressed_local_rotation = 0.0;
 	previous_delta_rotation = 0.0;
-	halted = true;
-	halted_by_timeout = true;
-	QTimer::singleShot (unhalt_timeout, this, SLOT (unhaltByTimeoutEdit ()));
-    } else {
-	edit_blocked = false;
     }
+    animator.stop ();
     update ();
 }
 void AnalogTimer::leaveEditMode ()
 {
-    if (edit_mode != false) {
-	edit_mode = false;
-	edit_blocked = false;
+    if (edit_mode.isEnabled ()) {
+	edit_mode.leave ();
+	int ms = QTime (0, 0, 0).msecsTo (app_manager->getCurrentTimer ()->getTimeLeft ()); // TODO: Switch to Qt-5.2.0: .msecsSinceStartOfDay ();
+	if (ms > 0)
+	    animator.start ();
 	update ();
     }
-}
-QTime AnalogTimer::getTime ()
-{
-    return time_value;
-}
-void AnalogTimer::setTime (const QTime &new_time)
-{
-    time_value = new_time;
-    if (time_value > MAX_TIME) {
-	time_value = MAX_TIME;
-    }	
-    emit timeChanged (time_value);
-    update ();
 }
 bool AnalogTimer::isSliderDown ()
 {
@@ -135,23 +115,14 @@ double AnalogTimer::getRotationByPos (const QPoint &point_pos, const QSize &circ
     QPoint rel_pos = point_pos - QPoint (circle_size.width () >> 1, circle_size.height () >> 1);
     return 0.5 - qAtan2 (rel_pos.x (), rel_pos.y ())*0.1591549430919;
 }
-void AnalogTimer::unblockEdit ()
-{
-    edit_blocked = false;
-}
-void AnalogTimer::unhaltByTimeoutEdit ()
+void AnalogTimer::unhaltEditByTimeout ()
 {
     pressed_time = unhalt_by_timeout_time;
     pressed_local_rotation = unhalt_by_timeout_local_rotation;
     previous_delta_rotation = 0.0;
-    if (down && (halted && halted_by_timeout)) {
-	halted = false;
-	halted_by_timeout = false;
+    if (down) {
 	emit pressed ();
 	update ();
-    } else {
-	halted = false;
-	halted_by_timeout = false;
     }
 }
 void AnalogTimer::resizeEvent (QResizeEvent*)
@@ -181,35 +152,28 @@ void AnalogTimer::resizeEvent (QResizeEvent*)
 }
 void AnalogTimer::mouseMoveEvent (QMouseEvent *event)
 {
-    QPointF tmp = estimated_circle_center - event->pos ();
-    if (QPointF::dotProduct (tmp, tmp) > estimated_circle_radius*estimated_circle_radius) {
-	event->ignore ();
-	return;
-    }
     emit userIsAlive ();
     emit clearAlarms ();
     if (down) {
-	if (edit_mode && !edit_blocked) {
+	if (edit_mode.isEnabled () && !edit_mode.isBlocked ()) {
 	    QPoint current_pos = event->pos () - estimated_circle_rect.topLeft ();
 	    double blind_circle_radius = estimated_circle_rect.width ()*0.05;
 	    QPointF tmp = estimated_circle_center - event->pos ();
 	    if (QPointF::dotProduct (tmp, tmp) < blind_circle_radius*blind_circle_radius) {
-		if (!halted) {
-		    halted = true;
-		    halted_by_timeout = false;
+		if (!edit_mode.isHalted ()) {
+		    edit_mode.halt ();
 		    emit released ();
 		    update ();
 		}
-	    } else if (halted) {
-		if (halted_by_timeout) {
-		    unhalt_by_timeout_time = time_value;
+	    } else if (edit_mode.isHalted ()) {
+		if (edit_mode.isHaltedByTimeout ()) {
+		    unhalt_by_timeout_time = app_manager->getCurrentTimer ()->getTimeLeft ();
 		    unhalt_by_timeout_local_rotation = getRotationByPos (current_pos, estimated_circle_rect.size ());
 		} else {
-		    pressed_time = time_value;
+		    pressed_time = app_manager->getCurrentTimer ()->getTimeLeft ();
 		    pressed_local_rotation = getRotationByPos (current_pos, estimated_circle_rect.size ());
 		    previous_delta_rotation = 0.0;
-		    halted = false;
-		    halted_by_timeout = false;
+		    edit_mode.unhalt ();
 		    emit pressed ();
 		}
 	    } else {
@@ -245,7 +209,7 @@ void AnalogTimer::mouseMoveEvent (QMouseEvent *event)
 		    if (new_time > MAX_TIME)
 			new_time = new_time.addSecs (-60);
 		}
-		setTime (new_time);
+		app_manager->getCurrentTimer ()->setTimeLeft (new_time);
 	    }
 	}
     }
@@ -262,20 +226,20 @@ void AnalogTimer::mousePressEvent (QMouseEvent *event)
     if (event->button () == Qt::LeftButton) {
 	emit lmb_pressed ();
 	QPoint current_pos = event->pos () - estimated_circle_rect.topLeft ();
-	unhalt_by_timeout_time = time_value;
+	QTime current_time = app_manager->getCurrentTimer ()->getTimeLeft ();
+	unhalt_by_timeout_time = current_time;
 	unhalt_by_timeout_local_rotation = getRotationByPos (current_pos, estimated_circle_rect.size ());
-	if (edit_mode) {
-	    if (edit_blocked) {
+	if (edit_mode.isEnabled ()) {
+	    if (edit_mode.isBlocked ()) {
 		down = true;
 	    } else {
 		if (!down)
 		    emit pressed ();
 		down = true;
-		pressed_time = time_value;
+		pressed_time = current_time;
 		pressed_local_rotation = getRotationByPos (current_pos, estimated_circle_rect.size ());
 		previous_delta_rotation = 0.0;
-		halted = false;
-		halted_by_timeout = false;
+		edit_mode.unhalt ();
 		update ();
 	    }
 	} else {
@@ -289,12 +253,12 @@ void AnalogTimer::mouseReleaseEvent (QMouseEvent *event)
     if (event->button () == Qt::LeftButton) {
 	emit lmb_released ();
 	if (down) {
-	    if (edit_mode && !halted && !halted_by_timeout)
+	    if (edit_mode.isEnabled () && !edit_mode.isHalted ())
 		emit released ();
 	    down = false;
 	    QPointF tmp = estimated_circle_center - event->pos ();
 	    if (QPointF::dotProduct (tmp, tmp) <= estimated_circle_radius*estimated_circle_radius) {
-		if (edit_mode && !edit_blocked)
+		if (edit_mode.isEnabled () && !edit_mode.isBlocked ())
 		    emit leaveEditModeRequested ();
 	    }
 	    update ();
@@ -321,13 +285,12 @@ void AnalogTimer::paintEvent (QPaintEvent*)
 
     switch (KITCHENTIMER_ANALOG_TIMER_MODE) {
     case 0: {
-	int int_value = QTime (0, 0, 0).secsTo (getTime ());
-	int full_hours = int_value/3600;
+	int int_value = QTime (0, 0, 0).secsTo (app_manager->getCurrentTimer ()->getTimeLeft ());
 	int int_angle = int_value%3600;
 	int_angle = ((int_angle + 59)/60)*60;
 	double angle = double (int_angle)*0.1;
 
-	bool draw_down = down && !halted;
+	bool draw_down = down && !edit_mode.isHalted ();
 	double press_scale_factor = draw_down ? 0.97 : 1.0;
 
 	QColor core_color = draw_down ? QColor (0xe8, 0xe8, 0xe8) : QColor (0xfd, 0xfd, 0xfd);
@@ -432,13 +395,13 @@ void AnalogTimer::paintEvent (QPaintEvent*)
 	}
     } break;
     case 1: {
-	int int_value = QTime (0, 0, 0).secsTo (getTime ());
+	int int_value = QTime (0, 0, 0).secsTo (app_manager->getCurrentTimer ()->getTimeLeft ());
 	int full_hours = int_value/3600;
 	int int_angle = int_value%3600;
 	int_angle = ((int_angle + 59)/60)*60;
 	double angle = double (int_angle)*0.1;
 
-	bool draw_down = down && !halted;
+	bool draw_down = down && !edit_mode.isHalted ();
 	double press_scale_factor = draw_down ? 0.97 : 1.0;
 
 	QColor core_color = draw_down ? QColor (0xe8, 0xe8, 0xe8) : QColor (0xfd, 0xfd, 0xfd);
@@ -493,7 +456,7 @@ void AnalogTimer::paintEvent (QPaintEvent*)
 	    p.setBrush (full_grad);
 	    p.drawPie (getScaledRect (estimated_circle_rect, 0.89), 0, 5760);
 	    p.setBrush (current_grad);
-	    if (!edit_mode) {
+	    if (!edit_mode.isEnabled ()) {
 		if (int_angle) {
 		    p.drawPie (getScaledRect (estimated_circle_rect, 0.89), 5760/4, (6 - angle)/360*5760);
 		    if (lifetime_elapsed_timer.elapsed ()%500 < 250) {
@@ -568,13 +531,13 @@ void AnalogTimer::paintEvent (QPaintEvent*)
 	}
     } break;
     case 2: {
-	int int_value = QTime (0, 0, 0).secsTo (getTime ());
+	int int_value = QTime (0, 0, 0).secsTo (app_manager->getCurrentTimer ()->getTimeLeft ());
 	int full_hours = int_value/3600;
 	int int_angle = int_value%3600;
 	int_angle = ((int_angle + 59)/60)*60;
 	double angle = double (int_angle)*0.1;
 
-	bool draw_down = down && !halted;
+	bool draw_down = down && !edit_mode.isHalted ();
 	double press_scale_factor = draw_down ? 0.97 : 1.0;
 
 	QColor core_color = draw_down ? QColor (0xe8, 0xe8, 0xe8) : QColor (0xfd, 0xfd, 0xfd);
@@ -629,7 +592,7 @@ void AnalogTimer::paintEvent (QPaintEvent*)
 	    p.setBrush (full_grad);
 	    p.drawPie (getScaledRect (estimated_circle_rect, 0.89), 0, 5760);
 	    p.setBrush (current_grad);
-	    if (!edit_mode) {
+	    if (app_manager->getCurrentTimer ()->isRunning ()) {
 		if (int_angle) {
 		    p.drawPie (getScaledRect (estimated_circle_rect, 0.89), 5760/4, (6 - angle)/360*5760);
 		    if (lifetime_elapsed_timer.elapsed ()%500 < 250) {
@@ -656,7 +619,7 @@ void AnalogTimer::paintEvent (QPaintEvent*)
 	}
 
 	{
-	    p.setBrush (QColor (0xd7, 0xb1, 0xa0));
+	    p.setBrush (QColor (0xa8, 0x65, 0x2b));
 	    double angle = 0.0;
 	    for (int i = 0; i < 12*5; ++i, angle += 6.0) {
 		if (i%5) {
@@ -682,7 +645,7 @@ void AnalogTimer::paintEvent (QPaintEvent*)
 		tr.translate (-estimated_circle_center.x (), -estimated_circle_center.y ());
 		p.setTransform (tr);
 		p.drawRect (QRectF (estimated_circle_center + QPointF (-estimated_circle_rect.width ()*0.005, estimated_circle_rect.height ()*0.29),
-				    QSizeF (estimated_circle_rect.width ()*0.01, estimated_circle_rect.height ()*((i%3) ? 0.035 : 0.05))));
+				    QSizeF (estimated_circle_rect.width ()*0.01, estimated_circle_rect.height ()*((i%3) ? 0.035 : 0.06))));
 	    }
 	}
 

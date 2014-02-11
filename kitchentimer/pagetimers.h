@@ -39,10 +39,6 @@ protected:
     void resizeEvent (QResizeEvent*);
 
 private slots:
-    void dialValueChanged (int);
-    void analogTimeChanged (const QTime&);
-    void digitalTimeChanged (const QTime&);
-    void currentTimerAdjusted ();
     void clearCurrentAlarms ();
     void enterEditMode ();
     void enterEditModePressed ();
