@@ -70,7 +70,6 @@ AnalogTimer::AnalogTimer (QWidget *parent)
       estimated_circle_radius (0.0)
 {
     lifetime_elapsed_timer.start ();
-    connect (app_manager->getCurrentTimer (), SIGNAL (timeout ()), this, SLOT (update ()));
     connect (app_manager->getCurrentTimer (), SIGNAL (timeout ()), &animator, SLOT (stop ()));
     connect (app_manager->getCurrentTimer (), SIGNAL (newTimeSet ()), this, SLOT (update ()));
     connect (&edit_mode, SIGNAL (unhaltedByTimeout ()), this, SLOT (unhaltEditByTimeout ()));
@@ -82,7 +81,6 @@ void AnalogTimer::enterEditMode (int unblock_timeout)
 {
     edit_mode.enter (unblock_timeout);
     animator.stop ();
-    update ();
 }
 void AnalogTimer::enterEditModePressed (int unblock_timeout, int unhalt_timeout)
 {
@@ -94,17 +92,14 @@ void AnalogTimer::enterEditModePressed (int unblock_timeout, int unhalt_timeout)
 	previous_delta_rotation = 0.0;
     }
     animator.stop ();
-    update ();
 }
 void AnalogTimer::leaveEditMode ()
 {
-    if (edit_mode.isEnabled ()) {
-	edit_mode.leave ();
-	int ms = QTime (0, 0, 0).msecsTo (app_manager->getCurrentTimer ()->getTimeLeft ()); // TODO: Switch to Qt-5.2.0: .msecsSinceStartOfDay ();
-	if (ms > 0)
-	    animator.start ();
-	update ();
-    }
+    edit_mode.leave ();
+    int ms = QTime (0, 0, 0).msecsTo (app_manager->getCurrentTimer ()->getTimeLeft ()); // TODO: Switch to Qt-5.2.0: .msecsSinceStartOfDay ();
+    if (ms > 0)
+	animator.start ();
+    update ();
 }
 bool AnalogTimer::isSliderDown ()
 {
@@ -149,6 +144,57 @@ void AnalogTimer::resizeEvent (QResizeEvent*)
     font.setPixelSize (estimated_font_pixel_size);
     small_font.setPixelSize (estimated_font_pixel_size*0.75);
     setFont (font);
+}
+void AnalogTimer::mousePressEvent (QMouseEvent *event)
+{
+    emit userIsAlive ();
+    QPointF tmp = estimated_circle_center - event->pos ();
+    if (QPointF::dotProduct (tmp, tmp) > estimated_circle_radius*estimated_circle_radius) {
+	event->ignore ();
+	return;
+    }
+    emit clearAlarms ();
+    if (event->button () == Qt::LeftButton) {
+	emit lmb_pressed ();
+	QPoint current_pos = event->pos () - estimated_circle_rect.topLeft ();
+	QTime current_time = app_manager->getCurrentTimer ()->getTimeLeft ();
+	unhalt_by_timeout_time = current_time;
+	unhalt_by_timeout_local_rotation = getRotationByPos (current_pos, estimated_circle_rect.size ());
+	if (edit_mode.isEnabled ()) {
+	    if (edit_mode.isBlocked ()) {
+		down = true;
+	    } else {
+		if (!down)
+		    emit pressed ();
+		down = true;
+		pressed_time = current_time;
+		pressed_local_rotation = getRotationByPos (current_pos, estimated_circle_rect.size ());
+		previous_delta_rotation = 0.0;
+		edit_mode.unhalt ();
+		update ();
+	    }
+	} else {
+	    emit enterEditModeRequested ();
+	}
+    }
+}
+void AnalogTimer::mouseReleaseEvent (QMouseEvent *event)
+{
+    emit clearAlarms ();
+    if (event->button () == Qt::LeftButton) {
+	emit lmb_released ();
+	if (down) {
+	    if (edit_mode.isEnabled () && !edit_mode.isHalted ())
+		emit released ();
+	    down = false;
+	    QPointF tmp = estimated_circle_center - event->pos ();
+	    if (QPointF::dotProduct (tmp, tmp) <= estimated_circle_radius*estimated_circle_radius) {
+		if (edit_mode.isEnabled () && !edit_mode.isBlocked ())
+		    emit leaveEditModeRequested ();
+	    }
+	    update ();
+	}
+    }
 }
 void AnalogTimer::mouseMoveEvent (QMouseEvent *event)
 {
@@ -212,64 +258,6 @@ void AnalogTimer::mouseMoveEvent (QMouseEvent *event)
 		app_manager->getCurrentTimer ()->setTimeLeft (new_time);
 	    }
 	}
-    }
-}
-void AnalogTimer::mousePressEvent (QMouseEvent *event)
-{
-    emit userIsAlive ();
-    QPointF tmp = estimated_circle_center - event->pos ();
-    if (QPointF::dotProduct (tmp, tmp) > estimated_circle_radius*estimated_circle_radius) {
-	event->ignore ();
-	return;
-    }
-    emit clearAlarms ();
-    if (event->button () == Qt::LeftButton) {
-	emit lmb_pressed ();
-	QPoint current_pos = event->pos () - estimated_circle_rect.topLeft ();
-	QTime current_time = app_manager->getCurrentTimer ()->getTimeLeft ();
-	unhalt_by_timeout_time = current_time;
-	unhalt_by_timeout_local_rotation = getRotationByPos (current_pos, estimated_circle_rect.size ());
-	if (edit_mode.isEnabled ()) {
-	    if (edit_mode.isBlocked ()) {
-		down = true;
-	    } else {
-		if (!down)
-		    emit pressed ();
-		down = true;
-		pressed_time = current_time;
-		pressed_local_rotation = getRotationByPos (current_pos, estimated_circle_rect.size ());
-		previous_delta_rotation = 0.0;
-		edit_mode.unhalt ();
-		update ();
-	    }
-	} else {
-	    emit enterEditModeRequested ();
-	}
-    }
-}
-void AnalogTimer::mouseReleaseEvent (QMouseEvent *event)
-{
-    emit clearAlarms ();
-    if (event->button () == Qt::LeftButton) {
-	emit lmb_released ();
-	if (down) {
-	    if (edit_mode.isEnabled () && !edit_mode.isHalted ())
-		emit released ();
-	    down = false;
-	    QPointF tmp = estimated_circle_center - event->pos ();
-	    if (QPointF::dotProduct (tmp, tmp) <= estimated_circle_radius*estimated_circle_radius) {
-		if (edit_mode.isEnabled () && !edit_mode.isBlocked ())
-		    emit leaveEditModeRequested ();
-	    }
-	    update ();
-	}
-    }
-}
-void AnalogTimer::mouseDoubleClickEvent (QMouseEvent *event)
-{
-    QPointF tmp = estimated_circle_center - event->pos ();
-    if (QPointF::dotProduct (tmp, tmp) > estimated_circle_radius*estimated_circle_radius) {
-	event->ignore ();
     }
 }
 void AnalogTimer::paintEvent (QPaintEvent*)

@@ -48,11 +48,7 @@ void Background::paintEvent (QPaintEvent*)
     p.drawImage (dst_rect, resource_manager->background_image, src_rect);
     if (shaded) {
 	p.setPen (Qt::NoPen);
-	if (animator.isRunning ()) {
-	    p.setBrush (QColor (0, 0, 0, int (animator.phase ()*192)));
-	} else {
-	    p.setBrush (QColor (0, 0, 0, 192));
-	}
+	p.setBrush (QColor (0, 0, 0, int (animator.phase ()*192)));
 	p.drawRect (dst_rect);
     } else {
 	if (animator.isRunning ()) {

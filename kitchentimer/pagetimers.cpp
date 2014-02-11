@@ -26,7 +26,7 @@ PageTimers::PageTimers (QWidget *parent)
 
     {
 	digital_timer = new DigitalTimer (this);
-	connect (digital_timer, SIGNAL (enterEditModeRequested ()), this, SLOT (enterEditMode ()));
+	connect (digital_timer, SIGNAL (enterEditModeRequested ()), this, SLOT (enterEditModeDigitalTimerPressed ()));
 	connect (digital_timer, SIGNAL (leaveEditModeRequested ()), this, SLOT (leaveEditMode ()));
 	layout->addWidget (digital_timer, 1, 1);
     }
@@ -34,7 +34,7 @@ PageTimers::PageTimers (QWidget *parent)
     {
 	analog_timer = new AnalogTimer (this);
 	connect (analog_timer, SIGNAL (clearAlarms ()), this, SLOT (clearCurrentAlarms ()));
-	connect (analog_timer, SIGNAL (enterEditModeRequested ()), this, SLOT (enterEditModePressed ()));
+	connect (analog_timer, SIGNAL (enterEditModeRequested ()), this, SLOT (enterEditModeAnalogTimerPressed ()));
 	connect (analog_timer, SIGNAL (leaveEditModeRequested ()), this, SLOT (leaveEditMode ()));
 	connect (analog_timer, SIGNAL (pressed ()), this, SIGNAL (analogTimerPressed ()));
 	connect (analog_timer, SIGNAL (released ()), this, SIGNAL (analogTimerReleased ()));
@@ -125,7 +125,27 @@ void PageTimers::enterEditMode ()
 	// leave_edit_mode_timer.start (KITCHENTIMER_LEAVE_EDIT_MODE_TIMEOUT_MS);
     }
 }
-void PageTimers::enterEditModePressed ()
+void PageTimers::enterEditModeDigitalTimerPressed ()
+{
+    stopCurrentTimer ();
+    if (!edit_mode) {
+	edit_mode = true;
+	app_manager->clearAlarms ();
+	if (app_manager->edition_happened) {
+	    analog_timer->enterEditMode (KITCHENTIMER_EDIT_TRANSITION_TIMEOUT_MS);
+	    digital_timer->enterEditModePressed (KITCHENTIMER_EDIT_TRANSITION_TIMEOUT_MS, KITCHENTIMER_EDIT_HOLD_TIMEOUT_MS);
+	    startShading (KITCHENTIMER_EDIT_TRANSITION_TIMEOUT_MS);
+	} else {
+	    analog_timer->enterEditMode (KITCHENTIMER_INITIAL_EDIT_TRANSITION_TIMEOUT_MS);
+	    digital_timer->enterEditModePressed (KITCHENTIMER_INITIAL_EDIT_TRANSITION_TIMEOUT_MS, KITCHENTIMER_INITIAL_EDIT_HOLD_TIMEOUT_MS);
+	    startShading (KITCHENTIMER_INITIAL_EDIT_TRANSITION_TIMEOUT_MS);
+	    app_manager->edition_happened = true;
+	}
+	app_manager->getCurrentTimer ()->stop ();
+	// leave_edit_mode_timer.start (KITCHENTIMER_LEAVE_EDIT_MODE_TIMEOUT_MS);
+    }
+}
+void PageTimers::enterEditModeAnalogTimerPressed ()
 {
     stopCurrentTimer ();
     if (!edit_mode) {

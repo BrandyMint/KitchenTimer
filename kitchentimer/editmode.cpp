@@ -80,6 +80,7 @@ void EditMode::leave ()
 void EditMode::unblockEdit ()
 {
     is_blocked = false;
+    emit unblockedByTimeout ();
 }
 void EditMode::unhaltByTimeout ()
 {

@@ -35,6 +35,7 @@ private:
     QTimer unhalt_timer;
 
 signals:
+    void unblockedByTimeout ();
     void unhaltedByTimeout ();
 };
 

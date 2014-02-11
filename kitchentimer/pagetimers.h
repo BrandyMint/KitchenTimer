@@ -41,7 +41,8 @@ protected:
 private slots:
     void clearCurrentAlarms ();
     void enterEditMode ();
-    void enterEditModePressed ();
+    void enterEditModeDigitalTimerPressed ();
+    void enterEditModeAnalogTimerPressed ();
     void leaveEditMode ();
     void timeout ();
     void restartTirednessTimer ();

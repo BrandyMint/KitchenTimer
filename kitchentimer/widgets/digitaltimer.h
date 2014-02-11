@@ -4,8 +4,9 @@
 #define DIGITALTIMER_H
 
 #include "animator.h"
+#include "editmode.h"
 
-#include <QLabel>
+#include <QWidget>
 #include <QTime>
 #include <QTimer>
 #include <QElapsedTimer>
@@ -19,13 +20,14 @@ public:
     DigitalTimer (QWidget* = NULL);
     ~DigitalTimer ();
     void enterEditMode (int);
+    void enterEditModePressed (int, int);
     void leaveEditMode ();
 
 protected:    
     void resizeEvent (QResizeEvent*);
-    void mouseMoveEvent (QMouseEvent*);
     void mousePressEvent (QMouseEvent*);
     void mouseReleaseEvent (QMouseEvent*);
+    void mouseMoveEvent (QMouseEvent*);
     void paintEvent (QPaintEvent*);
 
 private:
@@ -34,6 +36,9 @@ private:
     QSize separatorBoundingSize (QPainter&);
     bool addMinuteSharp ();
     bool subtractMinuteSharp ();
+
+private slots:
+    void unhaltEditByTimeout ();
 
 private:
     enum ButtonPressed {
@@ -47,9 +52,9 @@ private:
     QFont font;
     QFont font2;
     Animator animator;
-    bool edit_mode;
-    QElapsedTimer edit_mode_elapsed_timer;
+    EditMode edit_mode;
     int unblock_timeout;
+    bool down;
     enum ButtonPressed button_pressed;
     QRect button_pressed_rect;
     QPoint button_pressed_point;
@@ -67,7 +72,7 @@ private:
     int estimated_scroll_step_offset;
     QRect estimated_minute_add_rect;
     QRect estimated_minute_subtract_rect;
-    QRect estimated_digits_rect;
+    QRect estimated_minute_scroll_rect;
 
 signals:
     void enterEditModeRequested ();

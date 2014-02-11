@@ -30,6 +30,7 @@ void Animator::stop ()
     running = false;
     duration_ms = -1;
     elapsed_timer.invalidate ();
+    widget->update ();
     emit stopped ();
 }
 bool Animator::isRunning ()

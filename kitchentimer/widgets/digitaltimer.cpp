@@ -30,7 +30,7 @@ DigitalTimer::DigitalTimer (QWidget *parent)
     : QWidget (parent),
       font (qApp->font ()), font2 (qApp->font ()),
       animator (this, ANIMATION_MIN_FRAME_TIMEOUT),
-      edit_mode (false), unblock_timeout (0), button_pressed (NonePressed), button_pressed_rect (0, 0, 0, 0),
+      unblock_timeout (0), down (false), button_pressed (NonePressed), button_pressed_rect (0, 0, 0, 0), button_pressed_point (-1000000, -1000000),
       estimated_size (-1, -1),
       estimated_font_size (3),
       estimated_char_bounding_size (-1, -1),
@@ -40,14 +40,15 @@ DigitalTimer::DigitalTimer (QWidget *parent)
       estimated_scroll_step_offset (SCROLL_STEP_MIN_PIXELS),
       estimated_minute_add_rect (0, 0, 0, 0),
       estimated_minute_subtract_rect (0, 0, 0, 0),
-      estimated_digits_rect (0, 0, 0, 0)
+      estimated_minute_scroll_rect (0, 0, 0, 0)
 {
     font.setPixelSize (estimated_font_size);
     setFont (font);
-    edit_mode_elapsed_timer.invalidate ();
     connect (app_manager->getCurrentTimer (), SIGNAL (timeout ()), this, SLOT (update ()));
     connect (app_manager->getCurrentTimer (), SIGNAL (timeout ()), &animator, SLOT (stop ()));
     connect (app_manager->getCurrentTimer (), SIGNAL (newTimeSet ()), this, SLOT (update ()));
+    connect (&edit_mode, SIGNAL (unblockedByTimeout ()), this, SLOT (update ()));
+    connect (&edit_mode, SIGNAL (unhaltedByTimeout ()), this, SLOT (unhaltEditByTimeout ()));
 }
 DigitalTimer::~DigitalTimer ()
 {
@@ -87,22 +88,47 @@ bool DigitalTimer::subtractMinuteSharp ()
 void DigitalTimer::enterEditMode (int new_unblock_timeout)
 {
     unblock_timeout = new_unblock_timeout;
-    edit_mode = true;
-    if (unblock_timeout > 0) {
-	edit_mode_elapsed_timer.start ();
-    } else {
-	edit_mode_elapsed_timer.invalidate ();
-    }
+    edit_mode.enter (new_unblock_timeout);
+    animator.stop ();
+    update ();
+}
+void DigitalTimer::enterEditModePressed (int new_unblock_timeout, int new_unhalt_timeout)
+{
+    unblock_timeout = new_unblock_timeout;
+    edit_mode.enterPressed (new_unblock_timeout, new_unhalt_timeout);
     animator.stop ();
     update ();
 }
 void DigitalTimer::leaveEditMode ()
 {
-    edit_mode = false;
+    edit_mode.leave ();
     int ms = QTime (0, 0, 0).msecsTo (app_manager->getCurrentTimer ()->getTimeLeft ()); // TODO: Switch to Qt-5.2.0: .msecsSinceStartOfDay ();
     if (ms > 0)
 	animator.start ();
     update ();
+}
+void DigitalTimer::unhaltEditByTimeout ()
+{
+    if (down && edit_mode.isEnabled ()) {
+	if (!edit_mode.isBlocked ()) {
+	    if (estimated_minute_add_rect.contains (button_pressed_point)) {
+		button_pressed = AddMinutePressed;
+		button_pressed_rect = estimated_minute_add_rect;
+	    } else if (estimated_minute_subtract_rect.contains (button_pressed_point)) {
+		button_pressed = SubtractMinutePressed;
+		button_pressed_rect = estimated_minute_subtract_rect;
+	    } else if (estimated_minute_scroll_rect.contains (button_pressed_point)) {
+		button_pressed = ScrollMinutePressed;
+		button_pressed_rect = rect ();
+		vertical_scroll_accum = 0;
+	    } else {
+		button_pressed = LeaveAreaPressed;
+		button_pressed_rect = estimated_minute_scroll_rect;
+	    }
+	}
+	previous_point = button_pressed_point;
+	update ();
+    }
 }
 void DigitalTimer::resizeEvent (QResizeEvent*)
 {
@@ -228,7 +254,7 @@ void DigitalTimer::resizeEvent (QResizeEvent*)
 						    estimated_char_bounding_size.width ()*2,
 						    estimated_arrow_bounding_size.width ()*2);
 	    int base_y_start = current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ();
-	    estimated_digits_rect = QRect (half_w - estimated_char_bounding_size.width ()*3 - estimated_separator_bounding_size.width ()*2,
+	    estimated_minute_scroll_rect = QRect (half_w - estimated_char_bounding_size.width ()*3 - estimated_separator_bounding_size.width ()*2,
 					   base_y_start,
 					   estimated_char_bounding_size.width ()*6 + estimated_separator_bounding_size.width ()*4,
 					   estimated_char_bounding_size.height ());
@@ -413,6 +439,65 @@ void DigitalTimer::resizeEvent (QResizeEvent*)
     } break;
     }
 }
+void DigitalTimer::mousePressEvent (QMouseEvent *event)
+{
+    emit userIsAlive ();
+    if (event->button () == Qt::LeftButton) {
+	down = true;
+	emit lmb_pressed ();
+	const QPoint &pos = event->pos ();
+	if (edit_mode.isEnabled ()) {
+	    if (!edit_mode.isBlocked ()) {
+		if (estimated_minute_add_rect.contains (pos)) {
+		    button_pressed = AddMinutePressed;
+		    button_pressed_rect = estimated_minute_add_rect;
+		} else if (estimated_minute_subtract_rect.contains (pos)) {
+		    button_pressed = SubtractMinutePressed;
+		    button_pressed_rect = estimated_minute_subtract_rect;
+		} else if (estimated_minute_scroll_rect.contains (pos)) {
+		    button_pressed = ScrollMinutePressed;
+		    button_pressed_rect = rect ();
+		    vertical_scroll_accum = 0;
+		} else {
+		    button_pressed = LeaveAreaPressed;
+		    button_pressed_rect = estimated_minute_scroll_rect;
+		}
+	    }
+	    update ();
+	} else {
+	    emit enterEditModeRequested ();
+	}
+	button_pressed_point = pos;
+	previous_point = pos;
+    }
+}
+void DigitalTimer::mouseReleaseEvent (QMouseEvent *event)
+{
+    previous_point = QPoint (-1000000, -1000000);
+    emit userIsAlive ();
+    if (event->button () == Qt::LeftButton) {
+	down = false;
+	emit lmb_released ();
+	const QPoint &pos = event->pos ();
+	if (button_pressed == LeaveAreaPressed) {
+	    if (!estimated_minute_scroll_rect.contains (pos))
+		emit leaveEditModeRequested ();
+	} else if ((button_pressed != NonePressed) && button_pressed_rect.contains (pos)) {
+	    switch (button_pressed) {
+	    case AddMinutePressed: {
+		addMinuteSharp ();
+	    } break;
+	    case SubtractMinutePressed: {
+		subtractMinuteSharp ();
+	    } break;
+	    default: {
+	    } break;
+	    }
+	}
+	button_pressed = NonePressed;
+	update ();
+    }
+}
 void DigitalTimer::mouseMoveEvent (QMouseEvent *event)
 {
     emit userIsAlive ();
@@ -445,66 +530,11 @@ void DigitalTimer::mouseMoveEvent (QMouseEvent *event)
 	update ();
     } break;
     default: {
+	button_pressed_point = pos;
+	previous_point = pos;
     }
     }
     previous_point = pos;
-}
-void DigitalTimer::mousePressEvent (QMouseEvent *event)
-{
-    emit userIsAlive ();
-    if (event->button () == Qt::LeftButton) {
-	emit lmb_pressed ();
-	if (edit_mode) {
-	    if (!edit_mode_elapsed_timer.isValid ()) {
-		const QPoint &pos = event->pos ();
-		if (estimated_minute_add_rect.contains (pos)) {
-		    button_pressed = AddMinutePressed;
-		    button_pressed_rect = estimated_minute_add_rect;
-		} else if (estimated_minute_subtract_rect.contains (pos)) {
-		    button_pressed = SubtractMinutePressed;
-		    button_pressed_rect = estimated_minute_subtract_rect;
-		} else if (estimated_digits_rect.contains (pos)) {
-		    button_pressed = ScrollMinutePressed;
-		    button_pressed_rect = rect ();
-		    vertical_scroll_accum = 0;
-		} else {
-		    button_pressed = LeaveAreaPressed;
-		    button_pressed_rect = estimated_digits_rect;
-		}
-		button_pressed_point = pos;
-		previous_point = pos;
-		update ();
-	    }
-	} else {
-	    emit enterEditModeRequested ();
-	}
-    }
-}
-void DigitalTimer::mouseReleaseEvent (QMouseEvent *event)
-{
-    previous_point = QPoint (-1000000, -1000000);
-    emit userIsAlive ();
-    if (event->button () == Qt::LeftButton) {
-	emit lmb_released ();
-	const QPoint &pos = event->pos ();
-	if (button_pressed == LeaveAreaPressed) {
-	    if (!estimated_digits_rect.contains (pos))
-		emit leaveEditModeRequested ();
-	} else if ((button_pressed != NonePressed) && button_pressed_rect.contains (pos)) {
-	    switch (button_pressed) {
-	    case AddMinutePressed: {
-		addMinuteSharp ();
-	    } break;
-	    case SubtractMinutePressed: {
-		subtractMinuteSharp ();
-	    } break;
-	    default: {
-	    } break;
-	    }
-	}
-	button_pressed = NonePressed;
-	update ();
-    }
 }
 QSize DigitalTimer::charBoundingSize (QPainter &p)
 {
@@ -674,7 +704,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	    }
 	    p.restore ();
 	}
-	if (!edit_mode) { // "hour min sec"
+	if (!edit_mode.isEnabled ()) { // "hour min sec"
 	    p.save ();
 	    font2.setPixelSize (estimated_font_size*0.5);
 	    p.setFont (font2);
@@ -700,21 +730,11 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 
 	    p.restore ();
 	}
-	if (edit_mode) {
+	if (edit_mode.isEnabled ()) {
 	    QPoint base_point = QPoint (current_rect.width ()/2,
 					current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
-	    int alpha = 0xff;
-	    if (edit_mode_elapsed_timer.isValid ()) {
-		int elapsed = edit_mode_elapsed_timer.elapsed ();
-		if (elapsed >= unblock_timeout) {
-		    edit_mode_elapsed_timer.invalidate ();
-		} else {
-		    alpha = (0xff*elapsed)/unblock_timeout;
-		    alpha = (alpha > 0xff) ? 0xff : alpha;
-		}
-	    }
-	    QColor basic_color (0xd5, 0x92, 0x4b, alpha);
-	    QColor pressed_color (0x16, 0x83, 0x87, alpha);
+	    QColor basic_color (0xd5, 0x92, 0x4b);
+	    QColor pressed_color (0x16, 0x83, 0x87);
 	    {
 		QTransform tr;
 		tr.translate (base_point.x (), base_point.y ());
@@ -921,7 +941,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 		}
 	    }
 	}
-	if (timer->isRunning ()) { // Period
+	if (timer->getPeriod ().isValid () && !edit_mode.isEnabled ()) { // Period
 	    double font_scale = 0.9;
 	    p.save ();
 	    font2.setPixelSize (estimated_font_size*font_scale);
@@ -981,7 +1001,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	    }
 	    p.restore ();
 	}
-	if (!edit_mode) { // "hour min sec"
+	if (!edit_mode.isEnabled ()) { // "hour min sec"
 	    p.save ();
 	    font2.setPixelSize (estimated_font_size*0.5);
 	    p.setFont (font2);
@@ -1007,21 +1027,11 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 
 	    p.restore ();
 	}
-	if (edit_mode) {
+	if (edit_mode.isEnabled () && !edit_mode.isBlocked ()) {
 	    QPoint base_point = QPoint (current_rect.width ()/2,
 					current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
-	    int alpha = 0xff;
-	    if (edit_mode_elapsed_timer.isValid ()) {
-		int elapsed = edit_mode_elapsed_timer.elapsed ();
-		if (elapsed >= unblock_timeout) {
-		    edit_mode_elapsed_timer.invalidate ();
-		} else {
-		    alpha = (0xff*elapsed)/unblock_timeout;
-		    alpha = (alpha > 0xff) ? 0xff : alpha;
-		}
-	    }
-	    QColor basic_color (0xd5, 0x92, 0x4b, alpha);
-	    QColor pressed_color (0x16, 0x83, 0x87, alpha);
+	    QColor basic_color (0xd5, 0x92, 0x4b);
+	    QColor pressed_color (0x16, 0x83, 0x87);
 	    {
 		QTransform tr;
 		tr.translate (base_point.x (), base_point.y ());
@@ -1030,7 +1040,8 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 		tr.rotate (-90);
 		tr.translate (-base_point.x (), -base_point.y ());
 		p.setTransform (tr);
-		p.setPen (((button_pressed == AddMinutePressed) || (button_pressed == ScrollMinutePressed)) ? pressed_color : basic_color);
+		p.setPen ((!edit_mode.isHalted () && ((button_pressed == AddMinutePressed) || (button_pressed == ScrollMinutePressed))) ?
+			  pressed_color : basic_color);
 		p.drawText (QRect (base_point, estimated_arrow_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ">");
 	    }
 	    {
@@ -1043,7 +1054,8 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 		tr.scale (-1.0, 1.0);
 		tr.translate (-base_point.x (), -base_point.y ());
 		p.setTransform (tr);
-		p.setPen (((button_pressed == SubtractMinutePressed) || (button_pressed == ScrollMinutePressed)) ? pressed_color : basic_color);
+		p.setPen ((!edit_mode.isHalted () && ((button_pressed == SubtractMinutePressed) || (button_pressed == ScrollMinutePressed))) ?
+			  pressed_color : basic_color);
 		p.drawText (QRect (base_point, estimated_arrow_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ">");
 	    }
 	}
@@ -1134,7 +1146,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 		base_point.setX (base_point.x () + estimated_char_bounding_size.width ());
 	    }
 	}
-	if (!edit_mode) {
+	if (!edit_mode.isEnabled ()) {
 	    p.save ();
 	    font2.setPixelSize (estimated_font_size*0.5);
 	    p.setFont (font2);
@@ -1162,19 +1174,9 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	}
 	base_point = QPoint (current_rect.width ()/2,
 			     current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
-	if (edit_mode) {
-	    int alpha = 0xff;
-	    if (edit_mode_elapsed_timer.isValid ()) {
-		int elapsed = edit_mode_elapsed_timer.elapsed ();
-		if (elapsed >= unblock_timeout) {
-		    edit_mode_elapsed_timer.invalidate ();
-		} else {
-		    alpha = (0xff*elapsed)/unblock_timeout;
-		    alpha = (alpha > 0xff) ? 0xff : alpha;
-		}
-	    }
-	    QColor basic_color (0xd5, 0x92, 0x4b, alpha);
-	    QColor pressed_color (0x16, 0x83, 0x87, alpha);
+	if (edit_mode.isEnabled ()) {
+	    QColor basic_color (0xd5, 0x92, 0x4b);
+	    QColor pressed_color (0x16, 0x83, 0x87);
 	    {
 		QTransform tr;
 		tr.translate (base_point.x (), base_point.y ());
@@ -1248,19 +1250,9 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	}
 	base_point = QPoint (current_rect.width ()/2,
 			     current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
-	if (edit_mode) {
-	    int alpha = 0xff;
-	    if (edit_mode_elapsed_timer.isValid ()) {
-		int elapsed = edit_mode_elapsed_timer.elapsed ();
-		if (elapsed >= unblock_timeout) {
-		    edit_mode_elapsed_timer.invalidate ();
-		} else {
-		    alpha = (0xff*elapsed)/unblock_timeout;
-		    alpha = (alpha > 0xff) ? 0xff : alpha;
-		}
-	    }
-	    QColor basic_color (0xd5, 0x92, 0x4b, alpha);
-	    QColor pressed_color (0x16, 0x83, 0x87, alpha);
+	if (edit_mode.isEnabled ()) {
+	    QColor basic_color (0xd5, 0x92, 0x4b);
+	    QColor pressed_color (0x16, 0x83, 0x87);
 	    {
 		QTransform tr;
 		tr.translate (base_point.x (), base_point.y ());
@@ -1320,7 +1312,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 		base_point.setX (base_point.x () + estimated_char_bounding_size.width ());
 	    }
 	}
-	if (!edit_mode) { // Tough animation should be here
+	if (!edit_mode.isEnabled ()) { // Tough animation should be here
 	    p.save ();
 	    p.setPen (QColor (0xff, 0xff, 0xfd));
 	    font2.setPixelSize (estimated_font_size*0.75);
@@ -1418,19 +1410,9 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	}
 	base_point = QPoint (current_rect.width ()/2,
 			     current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ());
-	if (edit_mode) {
-	    int alpha = 0xff;
-	    if (edit_mode_elapsed_timer.isValid ()) {
-		int elapsed = edit_mode_elapsed_timer.elapsed ();
-		if (elapsed >= unblock_timeout) {
-		    edit_mode_elapsed_timer.invalidate ();
-		} else {
-		    alpha = (0xff*elapsed)/unblock_timeout;
-		    alpha = (alpha > 0xff) ? 0xff : alpha;
-		}
-	    }
-	    QColor basic_color (0xd5, 0x92, 0x4b, alpha);
-	    QColor pressed_color (0x16, 0x83, 0x87, alpha);
+	if (edit_mode.isEnabled ()) {
+	    QColor basic_color (0xd5, 0x92, 0x4b);
+	    QColor pressed_color (0x16, 0x83, 0x87);
 	    {
 		QTransform tr;
 		tr.translate (base_point.x (), base_point.y ());
@@ -1467,9 +1449,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	p.setBrush (QColor (0, 0x88, 0xff, 60));
 	p.drawRect (estimated_minute_subtract_rect);
 	p.setBrush (QColor (0, 0x00, 0xff, 60));
-	p.drawRect (estimated_digits_rect);
-	p.setBrush (QColor (0x22, 0x88, 0xff, 200));
-	p.drawRect (QRect (QPoint (0, 0), estimated_char_bounding_size));
+	p.drawRect (estimated_minute_scroll_rect);
 	p.restore ();
     }
 }

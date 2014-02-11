@@ -26,10 +26,9 @@ public:
     
 protected:
     void resizeEvent (QResizeEvent*);
-    void mouseMoveEvent (QMouseEvent*);
     void mousePressEvent (QMouseEvent*);
     void mouseReleaseEvent (QMouseEvent*);
-    void mouseDoubleClickEvent(QMouseEvent*);
+    void mouseMoveEvent (QMouseEvent*);
     void paintEvent (QPaintEvent*);
 
 private:
@@ -41,8 +40,8 @@ private slots:
 private:
     QFont font;
     QFont small_font;
-    Animator animator;
     QElapsedTimer lifetime_elapsed_timer;
+    Animator animator;
     EditMode edit_mode;
     bool down;
     QTime pressed_time;

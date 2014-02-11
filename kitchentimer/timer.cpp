@@ -10,7 +10,7 @@
 
 
 Timer::Timer (const QTime &time_left, const QString &title)
-    : period (0, 0, 0), time_left (time_left), title (title), running (false)
+    : period (), time_left (time_left), title (title), running (false)
 {
     elapsed_timer.invalidate ();
     connect (&main_timer, SIGNAL (timeout ()), this, SLOT (internalTimeout ()));
@@ -23,6 +23,7 @@ const QTime &Timer::getPeriod ()
 void Timer::setTimeLeft (const QTime &new_time_left)
 {
     time_left = new_time_left;
+    period = QTime ();
     emit newTimeSet ();
 }
 QTime Timer::getTimeLeft ()
