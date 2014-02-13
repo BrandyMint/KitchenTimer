@@ -8,7 +8,7 @@
 Application::Application (int &argc, char **argv)
     : QApplication (argc, argv)
 {
-    setFont (QFont (QFontDatabase::applicationFontFamilies (QFontDatabase::addApplicationFont (":/fonts/Cartonsix NC.ttf")).at (0), 17));
+    setFont (QFont (QFontDatabase::applicationFontFamilies (QFontDatabase::addApplicationFont (":/fonts/Cartonsix NC.ttf")).at (0), 30));
 
     new ApplicationManager ();
     new ResourceManager ();

@@ -7,6 +7,7 @@
 #include <QLabel>
 #include <QSpinBox>
 #include <QSlider>
+#include <QScrollBar>
 #include <QPainter>
 #include <QApplication>
 #include <QButtonGroup>
@@ -16,16 +17,24 @@
 #include <QScreen>
 
 
+#define KITCHENTIMER_SLIDE_VIBRATION_ON_TIMEOUT_default 200
+#define KITCHENTIMER_SLIDE_VIBRATION_SILENCE_DURATION_default 20
+#define KITCHENTIMER_SLIDE_VIBRATION_VIBRATION_DURATION_default 10
+#define KITCHENTIMER_ANALOG_TIMER_MAX_FOLLOW_EXTENT_default 90
 #define KITCHENTIMER_EDIT_TRANSITION_TIMEOUT_MS_default 100
 #define KITCHENTIMER_EDIT_HOLD_TIMEOUT_MS_default 150
 #define KITCHENTIMER_INITIAL_EDIT_TRANSITION_TIMEOUT_MS_default 20
 #define KITCHENTIMER_INITIAL_EDIT_HOLD_TIMEOUT_MS_default 30
 #define KITCHENTIMER_LEAVE_EDIT_MODE_TIMEOUT_MS_default 1000
-#define KITCHENTIMER_ANALOG_TIMER_MODE_default 2
-#define KITCHENTIMER_ANALOG_TIMER_MODE_count 3
-#define KITCHENTIMER_DIGITAL_TIMER_MODE_default 1
-#define KITCHENTIMER_DIGITAL_TIMER_MODE_count 5
+#define KITCHENTIMER_ANALOG_TIMER_MODE_default 3
+#define KITCHENTIMER_ANALOG_TIMER_MODE_count 4
+#define KITCHENTIMER_DIGITAL_TIMER_MODE_default 6
+#define KITCHENTIMER_DIGITAL_TIMER_MODE_count 7
 
+int KITCHENTIMER_SLIDE_VIBRATION_ON_TIMEOUT = KITCHENTIMER_SLIDE_VIBRATION_ON_TIMEOUT_default;
+int KITCHENTIMER_SLIDE_VIBRATION_SILENCE_DURATION = KITCHENTIMER_SLIDE_VIBRATION_SILENCE_DURATION_default;
+int KITCHENTIMER_SLIDE_VIBRATION_VIBRATION_DURATION = KITCHENTIMER_SLIDE_VIBRATION_VIBRATION_DURATION_default;
+int KITCHENTIMER_ANALOG_TIMER_MAX_FOLLOW_EXTENT = KITCHENTIMER_ANALOG_TIMER_MAX_FOLLOW_EXTENT_default;
 int KITCHENTIMER_EDIT_TRANSITION_TIMEOUT_MS = KITCHENTIMER_EDIT_TRANSITION_TIMEOUT_MS_default;
 int KITCHENTIMER_EDIT_HOLD_TIMEOUT_MS = KITCHENTIMER_EDIT_HOLD_TIMEOUT_MS_default;
 int KITCHENTIMER_INITIAL_EDIT_TRANSITION_TIMEOUT_MS = KITCHENTIMER_INITIAL_EDIT_TRANSITION_TIMEOUT_MS_default;
@@ -34,6 +43,8 @@ int KITCHENTIMER_LEAVE_EDIT_MODE_TIMEOUT_MS = KITCHENTIMER_LEAVE_EDIT_MODE_TIMEO
 int KITCHENTIMER_ANALOG_TIMER_MODE = KITCHENTIMER_ANALOG_TIMER_MODE_default;
 int KITCHENTIMER_DIGITAL_TIMER_MODE = KITCHENTIMER_DIGITAL_TIMER_MODE_default;
 bool KITCHENTIMER_SHOW_DEBUG_OVERLAY = false;
+bool KITCHENTIMER_USE_ANALOG_TIMER_SLIDE_SOUND = false;
+bool KITCHENTIMER_USE_VIBRATION = true;
 
 PageSettings::PageSettings (QWidget *parent)
     : QScrollArea (parent), font (qApp->font ())
@@ -68,7 +79,7 @@ PageSettings::PageSettings (QWidget *parent)
 #define ADD_INT_EDIT_BLOCK(var,title,min_value,max_value) {			\
 	grid_layout->addWidget (new QLabel (("" title " (") + QString::number ( \
 						var ## _default) + "):", scroll_widget), row, 0); \
-	grid_layout->addWidget (slider_ ## var = new QSlider (Qt::Horizontal, scroll_widget), row, 1); \
+	grid_layout->addWidget (slider_ ## var = new QScrollBar (Qt::Horizontal, scroll_widget), row, 1); \
 	(slider_ ## var)->setRange (min_value, max_value);		\
 	(slider_ ## var)->setValue (var);				\
 	connect (slider_ ## var, SIGNAL (valueChanged (int)),		\
@@ -80,6 +91,11 @@ PageSettings::PageSettings (QWidget *parent)
 		 this, SLOT (update_ ## var (int)));			\
 	row++;								\
     }
+
+    ADD_INT_EDIT_BLOCK (KITCHENTIMER_SLIDE_VIBRATION_ON_TIMEOUT, "Vibro on timeout", 1, 500)
+    ADD_INT_EDIT_BLOCK (KITCHENTIMER_SLIDE_VIBRATION_SILENCE_DURATION, "Vibro silence dur", 1, 200)
+    ADD_INT_EDIT_BLOCK (KITCHENTIMER_SLIDE_VIBRATION_VIBRATION_DURATION, "Vibro vibro dur", 1, 200)
+    ADD_INT_EDIT_BLOCK (KITCHENTIMER_ANALOG_TIMER_MAX_FOLLOW_EXTENT, "Angle follow extent", 1, 170)
     ADD_INT_EDIT_BLOCK (KITCHENTIMER_EDIT_TRANSITION_TIMEOUT_MS, "Edit transition to MS", 1, 2000)
     ADD_INT_EDIT_BLOCK (KITCHENTIMER_EDIT_HOLD_TIMEOUT_MS, "edit hold to MS", 1, 2000)
     ADD_INT_EDIT_BLOCK (KITCHENTIMER_INITIAL_EDIT_TRANSITION_TIMEOUT_MS, "In edit transition tm MS", 1, 2000)
@@ -92,7 +108,7 @@ PageSettings::PageSettings (QWidget *parent)
     group_box = new QGroupBox ("Analog timer mode");
     hlayout = new QHBoxLayout (group_box);
     for (int i = 0; i < KITCHENTIMER_ANALOG_TIMER_MODE_count; ++i) {
-	radio_button = new QRadioButton ("Mode " + QString::number (i));
+	radio_button = new QRadioButton ("M" + QString::number (i));
 	hlayout->addWidget (radio_button);
 	button_group->addButton (radio_button, i);
 	if (i == KITCHENTIMER_ANALOG_TIMER_MODE_default)
@@ -106,7 +122,7 @@ PageSettings::PageSettings (QWidget *parent)
     group_box = new QGroupBox ("Digital timer mode");
     hlayout = new QHBoxLayout (group_box);
     for (int i = 0; i < KITCHENTIMER_DIGITAL_TIMER_MODE_count; ++i) {
-	radio_button = new QRadioButton ("Mode " + QString::number (i));
+	radio_button = new QRadioButton ("M" + QString::number (i));
 	hlayout->addWidget (radio_button);
 	button_group->addButton (radio_button, i);
 	if (i == KITCHENTIMER_DIGITAL_TIMER_MODE_default)
@@ -120,6 +136,16 @@ PageSettings::PageSettings (QWidget *parent)
     show_debug_overlay_check_box->setChecked (KITCHENTIMER_SHOW_DEBUG_OVERLAY);
     connect (show_debug_overlay_check_box, SIGNAL (toggled (bool)), this, SLOT (update_KITCHENTIMER_SHOW_DEBUG_OVERLAY (bool)));
     layout->addWidget (show_debug_overlay_check_box);
+
+    QCheckBox *use_slide_sound_check_box = new QCheckBox ("Use slide sound", this);
+    use_slide_sound_check_box->setChecked (KITCHENTIMER_USE_ANALOG_TIMER_SLIDE_SOUND);
+    connect (use_slide_sound_check_box, SIGNAL (toggled (bool)), this, SLOT (update_KITCHENTIMER_USE_ANALOG_TIMER_SLIDE_SOUND (bool)));
+    layout->addWidget (use_slide_sound_check_box);
+
+    QCheckBox *use_vibration_check_box = new QCheckBox ("Use vibration", this);
+    use_vibration_check_box->setChecked (KITCHENTIMER_USE_VIBRATION);
+    connect (use_vibration_check_box, SIGNAL (toggled (bool)), this, SLOT (update_KITCHENTIMER_USE_VIBRATION (bool)));
+    layout->addWidget (use_vibration_check_box);
 
     hlayout = new QHBoxLayout ();
     hlayout->addStretch (1);
@@ -142,6 +168,10 @@ PageSettings::~PageSettings ()
 	(slider_ ## var)->setValue (new_value);		\
 	(spin_box_ ## var)->setValue (new_value);	\
     }
+ADD_INT_CHANGE_HANDLER (KITCHENTIMER_SLIDE_VIBRATION_ON_TIMEOUT)
+ADD_INT_CHANGE_HANDLER (KITCHENTIMER_SLIDE_VIBRATION_SILENCE_DURATION)
+ADD_INT_CHANGE_HANDLER (KITCHENTIMER_SLIDE_VIBRATION_VIBRATION_DURATION)
+ADD_INT_CHANGE_HANDLER (KITCHENTIMER_ANALOG_TIMER_MAX_FOLLOW_EXTENT)
 ADD_INT_CHANGE_HANDLER (KITCHENTIMER_EDIT_TRANSITION_TIMEOUT_MS)
 ADD_INT_CHANGE_HANDLER (KITCHENTIMER_EDIT_HOLD_TIMEOUT_MS)
 ADD_INT_CHANGE_HANDLER (KITCHENTIMER_INITIAL_EDIT_TRANSITION_TIMEOUT_MS)
@@ -158,4 +188,12 @@ void PageSettings::update_KITCHENTIMER_DIGITAL_TIMER_MODE (int new_mode)
 void PageSettings::update_KITCHENTIMER_SHOW_DEBUG_OVERLAY (bool new_value)
 {
     KITCHENTIMER_SHOW_DEBUG_OVERLAY = new_value;
+}
+void PageSettings::update_KITCHENTIMER_USE_ANALOG_TIMER_SLIDE_SOUND (bool new_value)
+{
+    KITCHENTIMER_USE_ANALOG_TIMER_SLIDE_SOUND = new_value;
+}
+void PageSettings::update_KITCHENTIMER_USE_VIBRATION (bool new_value)
+{
+    KITCHENTIMER_USE_VIBRATION = new_value;
 }

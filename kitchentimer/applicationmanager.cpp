@@ -88,17 +88,5 @@ void ApplicationManager::runTimerStart ()
 }
 void ApplicationManager::clearAlarms ()
 {
-    alarm_sequencer.enqueueClearAlarms ();
-}
-void ApplicationManager::soundAnalogTimerPressed ()
-{
-    alarm_sequencer.soundAnalogTimerPressed ();
-}
-void ApplicationManager::soundAnalogTimerReleased ()
-{
-    alarm_sequencer.soundAnalogTimerReleased ();
-}
-void ApplicationManager::signalLongPress ()
-{
-    alarm_sequencer.signalLongPress ();
+    alarm_sequencer.clearAlarms ();
 }

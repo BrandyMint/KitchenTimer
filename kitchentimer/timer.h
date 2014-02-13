@@ -18,6 +18,7 @@ public:
     const QTime &getPeriod ();
     void setTimeLeft (const QTime&);
     QTime getTimeLeft ();
+    int getMSElapsed ();
     void start ();
     void stop ();
     bool isRunning ();
@@ -25,7 +26,6 @@ public:
     const QString &getTitle ();
 
 private slots:
-    void internalTick ();
     void internalTimeout ();
 
 private:
@@ -34,11 +34,9 @@ private:
     QString title;
     bool running;
     QTimer main_timer;
-    QTimer ticker;
     QElapsedTimer elapsed_timer;
 
 signals:
-    void updateTick ();
     void timeout ();
     void newTimeSet ();
 };

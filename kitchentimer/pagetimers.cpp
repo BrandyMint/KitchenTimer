@@ -2,7 +2,6 @@
 #include "applicationmanager.h"
 #include "widgets/analogtimer.h"
 #include "widgets/digitaltimer.h"
-#include "widgets/clickablelabel.h"
 #include "widgets/buttonstick.h"
 
 #include <QPushButton>
@@ -38,6 +37,8 @@ PageTimers::PageTimers (QWidget *parent)
 	connect (analog_timer, SIGNAL (leaveEditModeRequested ()), this, SLOT (leaveEditMode ()));
 	connect (analog_timer, SIGNAL (pressed ()), this, SIGNAL (analogTimerPressed ()));
 	connect (analog_timer, SIGNAL (released ()), this, SIGNAL (analogTimerReleased ()));
+	connect (analog_timer, SIGNAL (slide ()), this, SIGNAL (analogTimerSlide ()));
+	connect (analog_timer, SIGNAL (zeroTimeReached ()), this, SIGNAL (zeroTimeReached ()));
 	layout->addWidget (analog_timer, 2, 1);
     }
 
@@ -55,7 +56,7 @@ PageTimers::PageTimers (QWidget *parent)
     button_stick->setAudioEnabled (app_manager->getAudioEnabled ());
     connect (button_stick, SIGNAL (released ()), app_manager, SLOT (toggleAudioEnabled ()));
     connect (app_manager, SIGNAL (valueChangedAudioEnabled (bool)), button_stick, SLOT (setAudioEnabled (bool)));
-    connect (button_stick, SIGNAL (longPressed ()), app_manager, SLOT (signalLongPress ()));
+    connect (button_stick, SIGNAL (longPressed ()), this, SIGNAL (longPressed ()));
     connect (button_stick, SIGNAL (longPressed ()), this, SIGNAL (showSettingsPageRequested ()));
 
 #if 0 // Link with Reference

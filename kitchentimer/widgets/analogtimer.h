@@ -50,11 +50,19 @@ private:
     QTime unhalt_by_timeout_time;
     double unhalt_by_timeout_local_rotation;
     QTimer leave_edit_mode_timer;
+
     QRect estimated_circle_rect;
     QRect estimated_circle_handle_rect;
     QPointF estimated_circle_center;
     double estimated_circle_radius;
     double estimated_font_pixel_size;
+    QRadialGradient estimated_current_grad;
+    QRadialGradient estimated_current2_grad;
+    QRadialGradient estimated_current3_grad;
+    QRadialGradient estimated_full_grad;
+    int estimated_full_hours;
+
+    QImage cached_over_layer;
 
 signals:
     void clearAlarms ();
@@ -62,6 +70,8 @@ signals:
     void leaveEditModeRequested ();
     void pressed ();
     void released ();
+    void slide ();
+    void zeroTimeReached ();
     void lmb_pressed ();
     void lmb_released ();
     void userIsAlive ();

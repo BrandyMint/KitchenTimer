@@ -34,8 +34,23 @@
 
     <!-- In-memory resident resources -->
     <file>audio/alarm.pcm</file>
+    <file>audio/alarm-manual.pcm</file>
     <file>audio/timer-start.pcm</file>
     <file>audio/analog-timer-press.pcm</file>
     <file>audio/analog-timer-release.pcm</file>
+    <file>audio/analog-timer-slide/01.pcm</file>
+    <file>audio/analog-timer-slide/02.pcm</file>
+    <file>audio/analog-timer-slide/03.pcm</file>
+    <file>audio/analog-timer-slide/04.pcm</file>
+    <file>audio/analog-timer-slide/05.pcm</file>
+    <file>audio/analog-timer-slide/06.pcm</file>
+    <file>audio/analog-timer-slide/07.pcm</file>
+    <file>audio/analog-timer-slide/08.pcm</file>
+    <file>audio/analog-timer-slide/09.pcm</file>
+    <file>audio/analog-timer-slide/10.pcm</file>
+    <file>audio/analog-timer-slide/11.pcm</file>
+    <file>audio/analog-timer-slide/12.pcm</file>
+    <file>audio/analog-timer-slide/13.pcm</file>
+    <file>audio/analog-timer-slide/14.pcm</file>
   </qresource>
 </RCC>

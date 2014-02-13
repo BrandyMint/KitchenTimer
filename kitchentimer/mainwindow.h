@@ -31,6 +31,9 @@ public slots:
     void setStartCurrentTimer (const QTime&);
     void soundAnalogTimerPressed ();
     void soundAnalogTimerReleased ();
+    void soundAnalogTimerSlide ();
+    void signalLongPress ();
+    void signalManualAlarm ();
     void previousDish ();
     void nextDish ();
 

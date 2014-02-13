@@ -22,6 +22,7 @@ public:
     void enterEditMode (int);
     void enterEditModePressed (int, int);
     void leaveEditMode ();
+    bool event (QEvent*);
 
 protected:    
     void resizeEvent (QResizeEvent*);
@@ -55,11 +56,13 @@ private:
     EditMode edit_mode;
     int unblock_timeout;
     bool down;
+    QElapsedTimer mouse_move_elapsed_timer;
+    double mouse_scroll_step_factor;
     enum ButtonPressed button_pressed;
     QRect button_pressed_rect;
     QPoint button_pressed_point;
     QPoint previous_point;
-    int vertical_scroll_accum;
+    double vertical_scroll_accum;
     QPoint animation_center;
 
     QPicture estimation_picture;
@@ -68,8 +71,8 @@ private:
     QSize estimated_char_bounding_size;
     QSize estimated_arrow_bounding_size;
     QSize estimated_separator_bounding_size;
-    int estimated_min_scroll_offset;
-    int estimated_scroll_step_offset;
+    double estimated_min_scroll_offset;
+    double estimated_scroll_step_offset;
     QRect estimated_minute_add_rect;
     QRect estimated_minute_subtract_rect;
     QRect estimated_minute_scroll_rect;

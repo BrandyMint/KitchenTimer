@@ -12,9 +12,9 @@
 Timer::Timer (const QTime &time_left, const QString &title)
     : period (), time_left (time_left), title (title), running (false)
 {
+    main_timer.setSingleShot (true);
     elapsed_timer.invalidate ();
     connect (&main_timer, SIGNAL (timeout ()), this, SLOT (internalTimeout ()));
-    connect (&ticker, SIGNAL (timeout ()), this, SLOT (internalTick ()));
 }
 const QTime &Timer::getPeriod ()
 {
@@ -33,20 +33,26 @@ QTime Timer::getTimeLeft ()
     else
 	return time_left;
 }
+int Timer::getMSElapsed ()
+{
+    if (running)
+	return elapsed_timer.elapsed ();
+    else
+	return 0;
+}
 void Timer::start ()
 {
-    main_timer.setSingleShot (true);
     main_timer.start (QTime (0, 0, 0).msecsTo (time_left));
     period = time_left;
     elapsed_timer.start ();
     running = true;
-    ticker.start (100);
 }
 void Timer::stop ()
 {
     main_timer.stop ();
+    if (running)
+	time_left = QTime (0, 0, 0).addMSecs ((QTime (0, 0, 0).msecsTo (period)) - elapsed_timer.elapsed ());
     elapsed_timer.invalidate ();
-    ticker.stop ();
     running = false;
 }
 bool Timer::isRunning ()
@@ -61,18 +67,8 @@ const QString &Timer::getTitle ()
 {
     return title;
 }
-void Timer::internalTick ()
-{
-    if (QTime (0, 0, 0).msecsTo (time_left) < 100) {
-	time_left = QTime (0, 0, 0);
-    } else {
-	time_left = time_left.addMSecs (-100);
-    }
-    emit updateTick ();
-}
 void Timer::internalTimeout ()
 {
-    ticker.stop ();
     time_left = QTime (0, 0, 0);
     running = false;
     emit timeout ();

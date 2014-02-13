@@ -33,9 +33,6 @@ public slots:
     void runAlarmOnce ();
     void runTimerStart ();
     void clearAlarms ();
-    void soundAnalogTimerPressed ();
-    void soundAnalogTimerReleased ();
-    void signalLongPress ();
 
 public:
     AlarmSequencer alarm_sequencer;

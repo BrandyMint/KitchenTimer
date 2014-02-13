@@ -20,6 +20,9 @@ MainWindow::MainWindow ()
     connect (page_timers, SIGNAL (setStartCurrentTimer (const QTime&)), this, SLOT (setStartCurrentTimer (const QTime&)));
     connect (page_timers, SIGNAL (analogTimerPressed ()), this, SLOT (soundAnalogTimerPressed ()));
     connect (page_timers, SIGNAL (analogTimerReleased ()), this, SLOT (soundAnalogTimerReleased ()));
+    connect (page_timers, SIGNAL (analogTimerSlide ()), this, SLOT (soundAnalogTimerSlide ()));
+    connect (page_timers, SIGNAL (zeroTimeReached ()), this, SLOT (signalManualAlarm ()));
+    connect (page_timers, SIGNAL (longPressed ()), this, SLOT (signalLongPress ()));
     connect (page_timers, SIGNAL (showSettingsPageRequested ()), this, SLOT (switchToPageSettings ()));
     connect (page_dish_select, SIGNAL (setCurrentDish (int)), this, SLOT (setCurrentDish (int)));
     connect (page_dish_select, SIGNAL (leavePage ()), this, SLOT (leavePageDishSelect ()));
@@ -75,6 +78,18 @@ void MainWindow::soundAnalogTimerPressed ()
 void MainWindow::soundAnalogTimerReleased ()
 {
     app_manager->alarm_sequencer.soundAnalogTimerReleased ();
+}
+void MainWindow::soundAnalogTimerSlide ()
+{
+    app_manager->alarm_sequencer.soundAnalogTimerSlide ();
+}
+void MainWindow::signalLongPress ()
+{
+    app_manager->alarm_sequencer.signalLongPress ();
+}
+void MainWindow::signalManualAlarm ()
+{
+    app_manager->alarm_sequencer.runManualAlarm ();
 }
 void MainWindow::cancelCurrentTimer ()
 {

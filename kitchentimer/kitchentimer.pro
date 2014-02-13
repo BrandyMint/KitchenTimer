@@ -1,4 +1,4 @@
-CONFIG += qt debug qt
+CONFIG += qt
 QT += widgets multimedia gui-private svg
 
 android {
@@ -34,7 +34,6 @@ HEADERS += configuration.h \
            animator.h \
            editmode.h \
            widgets/analogtimer.h \
-           widgets/clickablelabel.h \
            widgets/digitaltimer.h \
            widgets/background.h \
            widgets/introbackground.h \
@@ -56,7 +55,6 @@ SOURCES += main.cpp \
            animator.cpp \
            editmode.cpp \
            widgets/analogtimer.cpp \
-           widgets/clickablelabel.cpp \
            widgets/digitaltimer.cpp \
            widgets/background.cpp \
            widgets/introbackground.cpp \
@@ -70,16 +68,17 @@ lupdate.depends = $$SOURCES $$HEADERS $$FORMS $$TRANSLATIONS
 lrelease.commands = $$[QT_INSTALL_BINS]/lrelease kitchentimer.pro
 lupdate.depends = $$TRANSLATIONS
 
-android_build.commands = make && make install INSTALL_ROOT=./android-build/ && $$[QT_INSTALL_BINS]/androiddeployqt --output ./android-build/
-android_install.commands = adb install ./android-build/bin/QtApp-debug.apk
-android_uninstall.commands = adb uninstall org.qtproject.example.kitchentimer
-android_reinstall.commands = adb uninstall org.qtproject.example.kitchentimer; adb install ./android-build/bin/QtApp-debug.apk
-
-QMAKE_EXTRA_TARGETS += lupdate lrelease android_build android_install android_uninstall android_reinstall
+QMAKE_EXTRA_TARGETS += lupdate lrelease
 
 android {
-run.commands = make -j 4 android_build && make android_reinstall
-QMAKE_EXTRA_TARGETS += run
+android_build.commands = make && make install INSTALL_ROOT=./android-build/ && $$[QT_INSTALL_BINS]/androiddeployqt --output ./android-build/
+android_install.commands = adb install ./android-build/bin/QtApp-debug.apk
+android_uninstall.commands = adb uninstall com.brandymint.kitchentimer
+android_reinstall.commands = adb uninstall com.brandymint.kitchentimer; adb install ./android-build/bin/QtApp-debug.apk
+android_exec.commands = adb shell am start -n com.brandymint.kitchentimer/org.qtproject.qt5.android.bindings.QtActivity
+run.commands = make -j 4 android_build && make android_reinstall && make android_exec
+
+QMAKE_EXTRA_TARGETS += android_build android_install android_uninstall android_reinstall android_exec run
 }
 
 unix:!android {

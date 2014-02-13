@@ -50,13 +50,13 @@ void Animator::setMinFrameTimeout (int new_min_frame_timeout)
 void Animator::iterateUpdate ()
 {
     if (running) {
-#if 1 // TODO: Temporary debug stuff
-	qWarning ("(%p) REPAINT: %d", this, QTime::currentTime ().msec ());
+#if 0 // TODO: Temporary debug stuff
+	qWarning ("(%p) UPDATE: %d", this, QTime::currentTime ().msec ());
 #endif
 	if (elapsed_timer.isValid () && (elapsed_timer.elapsed () >= duration_ms)) {
 	    stop ();
 	} else {
-	    widget->repaint ();
+	    widget->update ();
 	    timer.start (min_frame_timeout);
 	}
     } else {

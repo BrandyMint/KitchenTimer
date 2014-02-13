@@ -68,6 +68,9 @@ signals:
     void editCurrentTimer ();
     void analogTimerPressed ();
     void analogTimerReleased ();
+    void analogTimerSlide ();
+    void zeroTimeReached ();
+    void longPressed ();
     void showSettingsPageRequested ();
 };
 

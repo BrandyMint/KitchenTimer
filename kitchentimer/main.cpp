@@ -11,16 +11,19 @@ int main (int argc, char *argv[])
     translator.load (":/translations/ru");
     application.installTranslator (&translator);
     MainWindow window;
-    // TODO: Hide following for non-desktop platforms
+
+#if defined(Q_OS_ANDROID)
+#elif defined(Q_OS_MAC)
+#else
     window.setWindowFlags (Qt::FramelessWindowHint);
     window.resize (540, 768);
-#ifdef Q_WS_S60
-    window.showMaximized ();
-#else
-    window.show ();
 #endif
+
+    window.show ();
+
 #ifdef Q_OS_MAC
     window.raise ();
 #endif
+
     return application.exec ();
 }
