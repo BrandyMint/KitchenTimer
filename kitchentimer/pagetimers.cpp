@@ -4,16 +4,9 @@
 #include "widgets/digitaltimer.h"
 #include "widgets/buttonstick.h"
 
-#include <QPushButton>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QLabel>
-#include <QLineEdit>
-#include <QScroller>
-#include <QScrollArea>
-#include <QStackedWidget>
-#include <QDial>
-#include <QMessageBox>
+#include <QGridLayout>
 
 
 PageTimers::PageTimers (QWidget *parent)
@@ -74,8 +67,6 @@ PageTimers::PageTimers (QWidget *parent)
     
     connect (this, SIGNAL (pressed ()), this, SLOT (leaveEditMode ()));
 
-    connect (app_manager->getCurrentTimer (), SIGNAL (timeout ()), this, SLOT (timeout ()));
-
     updateContent ();
 
     update_timer.setInterval (100);
@@ -98,9 +89,10 @@ PageTimers::~PageTimers ()
 void PageTimers::updateContent ()
 {
 }
-void PageTimers::resizeEvent (QResizeEvent*)
+void PageTimers::resizeEvent (QResizeEvent *event)
 {
     button_stick->adjustGeometry (rect ());
+    Background::resizeEvent (event);
 }
 void PageTimers::clearCurrentAlarms ()
 {
@@ -182,10 +174,6 @@ void PageTimers::leaveEditMode ()
 	}
 	leave_edit_mode_timer.stop ();
     }
-}
-void PageTimers::timeout ()
-{
-    app_manager->runAlarmOnce ();
 }
 void PageTimers::restartTirednessTimer ()
 {

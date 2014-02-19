@@ -2,8 +2,57 @@
 
 #include <QSettings>
 #include <QApplication>
+#include <QTcpSocket>
 
 static ApplicationManager *instance = NULL;
+
+#ifdef KITCHENTIMER_DEBUG_BUILD
+static NetworkLog *network_log_instance = NULL;
+
+NetworkLog *NetworkLog::getInstance ()
+{
+    if (!network_log_instance) {
+	qFatal ("No NetworkLog instance created, exiting...");
+	qApp->exit (1);
+    }
+    return network_log_instance;
+}
+
+NetworkLog::NetworkLog ()
+{
+    if (network_log_instance) {
+	qFatal ("Only one instance of NetworkLog at a time allowed, exiting...");
+	qApp->exit (1);
+    }
+
+    network_log_instance = this;
+
+    socket = new QTcpSocket ();
+    socket->connectToHost ("192.168.0.102", 9938);
+    if (!socket->waitForConnected (3000)) {
+	qCritical ("Couldn't connect to debug server, exiting...");
+    }
+}
+NetworkLog::~NetworkLog ()
+{
+    delete socket;
+    network_log_instance = NULL;
+}
+void NetworkLog::write (const QByteArray &data)
+{
+    socket->write (data);
+    socket->flush ();
+}
+void NetworkLog::write (const QString &data)
+{
+    write (data.toUtf8 ());
+}
+void NetworkLog::log (const QString &data)
+{
+    write (QTime::currentTime ().toString ("hh:mm:ss.zzz") + "| " + data + "\n");
+}
+
+#endif
 
 ApplicationManager *ApplicationManager::getInstance ()
 {
@@ -15,8 +64,7 @@ ApplicationManager *ApplicationManager::getInstance ()
 }
 
 ApplicationManager::ApplicationManager ()
-    : QObject (),
-      edition_happened (false)
+    : QObject (), edition_happened (false)
 {
     if (instance) {
 	qFatal ("Only one instance of ApplicationManager at a time allowed, exiting...");
@@ -27,20 +75,23 @@ ApplicationManager::ApplicationManager ()
 
     QSettings settings (KITCHENTIMER_SETTINGS_COMPANY_NAME, KITCHENTIMER_SETTINGS_PRODUCT_NAME);
     settings.beginGroup ("General");
-    audio_enabled = settings.value ("audio_enabled", true).toBool ();
+    audio_enabled = true; // TODO: settings.value ("audio_enabled", true).toBool ();
     vibrosignal_enabled = settings.value ("vibrosignal_enabled", true).toBool ();
     current_timer = new Timer (settings.value ("current_timer_time_left", QTime (0, 0, 0)).toTime (), "Default timer");
     settings.endGroup ();
 
     reference_model.loadModelFile (":/reference/reference.txt");
 
-    alarm_sequencer.setAudioEnabled (audio_enabled);
-    connect (this, SIGNAL (valueChangedAudioEnabled (bool)), &alarm_sequencer, SLOT (setAudioEnabled (bool)));
+    alarm_sequencer = new AlarmSequencer;
 
+    connect (current_timer, SIGNAL (timeout ()), this, SLOT (runAlarmOnce ()));
+
+#ifdef KITCHENTIMER_DEBUG_BUILD
+    new NetworkLog ();
+#endif
 }
 ApplicationManager::~ApplicationManager ()
 {
-    instance = NULL;
     QSettings settings (KITCHENTIMER_SETTINGS_COMPANY_NAME, KITCHENTIMER_SETTINGS_PRODUCT_NAME);
     settings.beginGroup ("General");
     settings.setValue ("audio_enabled", audio_enabled);
@@ -48,7 +99,10 @@ ApplicationManager::~ApplicationManager ()
     settings.setValue ("current_timer_time_left", current_timer->getTimeLeft ());
     settings.endGroup ();
     
+    delete alarm_sequencer;
     delete current_timer;
+
+    instance = NULL;
 }
 bool ApplicationManager::getAudioEnabled ()
 {
@@ -57,6 +111,10 @@ bool ApplicationManager::getAudioEnabled ()
 void ApplicationManager::setAudioEnabled (bool new_value)
 {
     audio_enabled = new_value;
+    QSettings settings (KITCHENTIMER_SETTINGS_COMPANY_NAME, KITCHENTIMER_SETTINGS_PRODUCT_NAME);
+    settings.beginGroup ("General");
+    settings.setValue ("audio_enabled", audio_enabled);
+    settings.endGroup ();
     emit valueChangedAudioEnabled (audio_enabled);
 }
 void ApplicationManager::toggleAudioEnabled ()
@@ -80,13 +138,13 @@ Timer *ApplicationManager::getCurrentTimer ()
 }
 void ApplicationManager::runAlarmOnce ()
 {
-    alarm_sequencer.runSingleAlarm ();
+    alarm_sequencer->runSingleAlarm ();
 }
 void ApplicationManager::runTimerStart ()
 {
-    alarm_sequencer.runTimerStart ();
+    alarm_sequencer->runTimerStart ();
 }
 void ApplicationManager::clearAlarms ()
 {
-    alarm_sequencer.clearAlarms ();
+    alarm_sequencer->stopAlarm ();
 }

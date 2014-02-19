@@ -12,6 +12,33 @@
 #define app_manager ((ApplicationManager*) ApplicationManager::getInstance ())
 
 
+#ifdef KITCHENTIMER_DEBUG_BUILD
+#define network_log ((NetworkLog*) NetworkLog::getInstance ())
+
+QT_BEGIN_NAMESPACE
+class QTcpSocket;
+QT_END_NAMESPACE
+
+class NetworkLog: public QObject
+{
+    Q_OBJECT
+
+public:
+    static NetworkLog *getInstance ();
+
+public:
+    NetworkLog ();
+    ~NetworkLog ();
+    void write (const QByteArray&);
+    void write (const QString&);
+    void log (const QString&);
+
+private:
+    QTcpSocket *socket;
+};
+#endif
+
+
 class ApplicationManager: public QObject
 {
     Q_OBJECT
@@ -35,7 +62,7 @@ public slots:
     void clearAlarms ();
 
 public:
-    AlarmSequencer alarm_sequencer;
+    AlarmSequencer *alarm_sequencer;
     bool edition_happened;
     ReferenceModel reference_model;
 

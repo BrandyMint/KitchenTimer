@@ -20,6 +20,7 @@ public slots:
     void setAudioEnabled (bool);
 
 protected:    
+    void resizeEvent (QResizeEvent*);
     void mousePressEvent (QMouseEvent*);
     void mouseReleaseEvent (QMouseEvent*);
     void mouseMoveEvent (QMouseEvent*);
@@ -33,6 +34,7 @@ private:
     bool audio_pressed;
     bool mouse_inside;
     QTimer long_press_timer;
+    QImage cached_image;
 
 signals:
     void pressed ();

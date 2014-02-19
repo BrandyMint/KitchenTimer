@@ -20,6 +20,7 @@ public:
     void startUnshading (int);
 
 protected:
+    void resizeEvent (QResizeEvent*);
     void mousePressEvent (QMouseEvent*);
     void mouseReleaseEvent (QMouseEvent*);
     void paintEvent (QPaintEvent*);
@@ -27,6 +28,7 @@ protected:
 private:
     Animator animator;
     bool shaded;
+    QImage cached_image;
 
 signals:
     void pressed ();

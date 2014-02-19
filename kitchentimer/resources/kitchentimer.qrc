@@ -28,11 +28,12 @@
 
     <file>fonts/Cartonsix NC.ttf</file>
 
-    <file>translations/ru.qm</file>
-
     <file>reference/reference.txt</file>
 
+    <file>translations/ru.qm</file>
+
     <!-- In-memory resident resources -->
+    <file>audio/audio-enabled.pcm</file>
     <file>audio/alarm.pcm</file>
     <file>audio/alarm-manual.pcm</file>
     <file>audio/timer-start.pcm</file>

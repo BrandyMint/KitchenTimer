@@ -1,13 +1,5 @@
 #include "timer.h"
 
-#include <QPushButton>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QLineEdit>
-
-#include <stdio.h>
-
 
 Timer::Timer (const QTime &time_left, const QString &title)
     : period (), time_left (time_left), title (title), running (false)
@@ -28,10 +20,13 @@ void Timer::setTimeLeft (const QTime &new_time_left)
 }
 QTime Timer::getTimeLeft ()
 {
-    if (running)
-	return QTime (0, 0, 0).addMSecs ((QTime (0, 0, 0).msecsTo (period)) - elapsed_timer.elapsed ());
-    else
+    if (running) {
+	qint64 period_ms = QTime (0, 0, 0).msecsTo (period);
+	qint64 elapsed_ms = elapsed_timer.elapsed ();
+	return QTime (0, 0, 0).addMSecs (qMax (period_ms - elapsed_ms, qint64 (0)));
+    } else {
 	return time_left;
+    }
 }
 int Timer::getMSElapsed ()
 {

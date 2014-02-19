@@ -2,7 +2,6 @@
 
 #include <QStringList>
 
-#include <stdio.h>
 
 ReferenceItem::ReferenceItem (const QString &title, const QString &full_title, const QString &description, const QTime &default_time,
 			      ReferenceItem *parent)

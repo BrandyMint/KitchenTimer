@@ -36,6 +36,7 @@ public slots:
     void signalManualAlarm ();
     void previousDish ();
     void nextDish ();
+    void showAbove ();
 
 private:
     PageIntro *page_intro;

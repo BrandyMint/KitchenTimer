@@ -23,12 +23,16 @@ MainWindow::MainWindow ()
     connect (page_timers, SIGNAL (analogTimerSlide ()), this, SLOT (soundAnalogTimerSlide ()));
     connect (page_timers, SIGNAL (zeroTimeReached ()), this, SLOT (signalManualAlarm ()));
     connect (page_timers, SIGNAL (longPressed ()), this, SLOT (signalLongPress ()));
+#ifdef KITCHENTIMER_DEBUG_BUILD
     connect (page_timers, SIGNAL (showSettingsPageRequested ()), this, SLOT (switchToPageSettings ()));
+#endif
     connect (page_dish_select, SIGNAL (setCurrentDish (int)), this, SLOT (setCurrentDish (int)));
     connect (page_dish_select, SIGNAL (leavePage ()), this, SLOT (leavePageDishSelect ()));
     connect (page_dish_select, SIGNAL (previousDish ()), this, SLOT (previousDish ()));
     connect (page_dish_select, SIGNAL (nextDish ()), this, SLOT (nextDish ()));
     connect (page_settings, SIGNAL (leavePage ()), this, SLOT (switchToPageTimers ()));
+
+    connect (app_manager->getCurrentTimer (), SIGNAL (timeout ()), this, SLOT (showAbove ()));
 
     setCurrentWidget (page_intro);
 }
@@ -73,23 +77,23 @@ void MainWindow::setStartCurrentTimer (const QTime &new_period)
 }
 void MainWindow::soundAnalogTimerPressed ()
 {
-    app_manager->alarm_sequencer.soundAnalogTimerPressed ();
+    app_manager->alarm_sequencer->soundAnalogTimerPressed ();
 }
 void MainWindow::soundAnalogTimerReleased ()
 {
-    app_manager->alarm_sequencer.soundAnalogTimerReleased ();
+    app_manager->alarm_sequencer->soundAnalogTimerReleased ();
 }
 void MainWindow::soundAnalogTimerSlide ()
 {
-    app_manager->alarm_sequencer.soundAnalogTimerSlide ();
+    app_manager->alarm_sequencer->soundAnalogTimerSlide ();
 }
 void MainWindow::signalLongPress ()
 {
-    app_manager->alarm_sequencer.signalLongPress ();
+    app_manager->alarm_sequencer->signalLongPress ();
 }
 void MainWindow::signalManualAlarm ()
 {
-    app_manager->alarm_sequencer.runManualAlarm ();
+    app_manager->alarm_sequencer->runManualAlarm ();
 }
 void MainWindow::cancelCurrentTimer ()
 {
@@ -122,4 +126,10 @@ void MainWindow::nextDish ()
 	reference_model.setCurrentIndex (current_index + 1);
 	page_dish_select->updateContentSubpageDetails ();
     }
+}
+void MainWindow::showAbove ()
+{
+    show ();
+    activateWindow ();
+    raise ();
 }

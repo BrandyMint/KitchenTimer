@@ -11,10 +11,7 @@
 #include <QTimer>
 
 QT_BEGIN_NAMESPACE
-class QPushButton;
 class QVBoxLayout;
-class QScrollArea;
-class QStackedWidget;
 QT_END_NAMESPACE
 
 class Timer;
@@ -44,7 +41,6 @@ private slots:
     void enterEditModeDigitalTimerPressed ();
     void enterEditModeAnalogTimerPressed ();
     void leaveEditMode ();
-    void timeout ();
     void restartTirednessTimer ();
     void startTirednessTimer ();
 

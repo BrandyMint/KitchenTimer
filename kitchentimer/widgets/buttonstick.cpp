@@ -45,6 +45,17 @@ void ButtonStick::setAudioEnabled (bool new_audio_enabled)
     audio_enabled = new_audio_enabled;
     update ();
 }
+void ButtonStick::resizeEvent (QResizeEvent*)
+{
+    cached_image = QImage (size (), QImage::Format_ARGB32);
+    cached_image.fill (0);
+
+    QPainter p;
+    p.begin (&cached_image);
+    p.setRenderHint (QPainter::SmoothPixmapTransform, true);
+    p.drawImage (rect (), resource_manager->button_stick_image, resource_manager->button_stick_image.rect ());
+    p.end ();
+}
 void ButtonStick::mousePressEvent (QMouseEvent *event)
 {
     if (event->button () == Qt::LeftButton) {
@@ -76,8 +87,7 @@ void ButtonStick::mouseMoveEvent (QMouseEvent *event)
 void ButtonStick::paintEvent (QPaintEvent*)
 {
     QPainter p (this);
-    p.setRenderHint (QPainter::SmoothPixmapTransform, true);
-    p.drawImage (rect (), resource_manager->button_stick_image, resource_manager->button_stick_image.rect ());
+    p.drawImage (cached_image.rect (), cached_image, cached_image.rect ());
     if (audio_enabled) {
 	if (audio_pressed && mouse_inside)
 	    resource_manager->audio_enabled_pressed_svg.render (&p);

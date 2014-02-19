@@ -52,6 +52,7 @@ private:
     QTimer leave_edit_mode_timer;
 
     QRect estimated_circle_rect;
+    QRectF estimated_accum_circle_rect;
     QRect estimated_circle_handle_rect;
     QPointF estimated_circle_center;
     double estimated_circle_radius;
@@ -61,7 +62,10 @@ private:
     QRadialGradient estimated_current3_grad;
     QRadialGradient estimated_full_grad;
     int estimated_full_hours;
+    QPointF estimated_handle_triangle_points[3];
 
+    QImage cached_back_layer;
+    QImage cached_analog_timer_handle_layer;
     QImage cached_over_layer;
 
 signals:

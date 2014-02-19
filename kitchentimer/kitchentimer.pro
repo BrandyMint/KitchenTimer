@@ -1,4 +1,4 @@
-CONFIG += qt
+CONFIG += qt release
 QT += widgets multimedia gui-private svg
 
 android {
@@ -14,6 +14,8 @@ DEFINES += KITCHENTIMER_ANIMATION_REPAINT_TIMEOUT_MS=10
 DEFINES += KITCHENTIMER_LONG_PRESS_TIMEOUT_MS=1000
 
 DEFINES += KITCHENTIMER_INTRO_TIMEOUT_MS=1000
+
+# DEFINES += KITCHENTIMER_DEBUG_BUILD=1
 
 QMAKE_CXXFLAGS += "-include configuration.h"
 
@@ -31,6 +33,8 @@ HEADERS += configuration.h \
            referenceitem.h \
            referencemodel.h \
            alarmsequencer.h \
+           audiosequencer.h \
+           vibrosequencer.h \
            animator.h \
            editmode.h \
            widgets/analogtimer.h \
@@ -52,6 +56,8 @@ SOURCES += main.cpp \
            referenceitem.cpp \
            referencemodel.cpp \
            alarmsequencer.cpp \
+           audiosequencer.cpp \
+           vibrosequencer.cpp \
            animator.cpp \
            editmode.cpp \
            widgets/analogtimer.cpp \
@@ -72,13 +78,14 @@ QMAKE_EXTRA_TARGETS += lupdate lrelease
 
 android {
 android_build.commands = make && make install INSTALL_ROOT=./android-build/ && $$[QT_INSTALL_BINS]/androiddeployqt --output ./android-build/
+android_build_release.commands = make && make install INSTALL_ROOT=./android-build/ && $$[QT_INSTALL_BINS]/androiddeployqt --release --output ./android-build/
 android_install.commands = adb install ./android-build/bin/QtApp-debug.apk
 android_uninstall.commands = adb uninstall com.brandymint.kitchentimer
 android_reinstall.commands = adb uninstall com.brandymint.kitchentimer; adb install ./android-build/bin/QtApp-debug.apk
 android_exec.commands = adb shell am start -n com.brandymint.kitchentimer/org.qtproject.qt5.android.bindings.QtActivity
 run.commands = make -j 4 android_build && make android_reinstall && make android_exec
 
-QMAKE_EXTRA_TARGETS += android_build android_install android_uninstall android_reinstall android_exec run
+QMAKE_EXTRA_TARGETS += android_build android_build_release android_install android_uninstall android_reinstall android_exec run
 }
 
 unix:!android {

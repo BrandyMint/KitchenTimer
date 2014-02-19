@@ -11,24 +11,13 @@ Background::Background (QWidget *parent)
     : QWidget (parent), animator (this, ANIMATION_MIN_FRAME_TIMEOUT), shaded (false)
 {
 }
-void Background::mousePressEvent (QMouseEvent *event)
+void Background::resizeEvent (QResizeEvent*)
 {
-    if (event->button () == Qt::LeftButton) {
-	emit pressed ();
-    }
-}
-void Background::mouseReleaseEvent (QMouseEvent *event)
-{
-    if (event->button () == Qt::LeftButton) {
-	emit released ();
-    }
-}
-void Background::paintEvent (QPaintEvent*)
-{
-    QPainter p (this);
-    p.setRenderHint (QPainter::SmoothPixmapTransform, true);
+    cached_image = QImage (size (), QImage::Format_RGB32);
+    cached_image.fill (0);
+
     QRect src_rect = resource_manager->background_image.rect ();
-    const QRect &dst_rect = rect ();
+    const QRect &dst_rect = cached_image.rect ();
     int src_w = src_rect.width ();
     int src_h = src_rect.height ();
     int dst_w = dst_rect.width ();
@@ -44,18 +33,33 @@ void Background::paintEvent (QPaintEvent*)
 	src_rect.setY ((src_h - int (src_w/dst_aspect)) >> 1);
 	src_rect.setHeight (src_w/dst_aspect);
     }
-    
+
+    QPainter p;
+    p.begin (&cached_image);
+    p.setRenderHint (QPainter::SmoothPixmapTransform, true);
     p.drawImage (dst_rect, resource_manager->background_image, src_rect);
-    if (shaded) {
+    p.end ();
+}
+void Background::mousePressEvent (QMouseEvent *event)
+{
+    if (event->button () == Qt::LeftButton) {
+	emit pressed ();
+    }
+}
+void Background::mouseReleaseEvent (QMouseEvent *event)
+{
+    if (event->button () == Qt::LeftButton) {
+	emit released ();
+    }
+}
+void Background::paintEvent (QPaintEvent*)
+{
+    QPainter p (this);
+    p.drawImage (cached_image.rect (), cached_image, cached_image.rect ());
+    if (shaded || animator.isRunning ()) {
 	p.setPen (Qt::NoPen);
 	p.setBrush (QColor (0, 0, 0, int (animator.phase ()*192)));
-	p.drawRect (dst_rect);
-    } else {
-	if (animator.isRunning ()) {
-	    p.setPen (Qt::NoPen);
-	    p.setBrush (QColor (0, 0, 0, int (animator.phase ()*192)));
-	    p.drawRect (dst_rect);
-	}
+	p.drawRect (rect ());
     }
 }
 void Background::setShaded (bool new_shaded)
