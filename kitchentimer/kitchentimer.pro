@@ -1,3 +1,5 @@
+APPLICATION_NAME = kitchentimer
+
 android {
 CONFIG += qt release
 QT += widgets multimedia svg androidextras opengl gui-private 
@@ -66,10 +68,10 @@ SOURCES += main.cpp \
 
 TRANSLATIONS = translations/ru.ts
 
-lupdate.commands = $$[QT_INSTALL_BINS]/lupdate kitchentimer.pro
+lupdate.commands = $$[QT_INSTALL_BINS]/lupdate $$APPLICATION_NAME.pro
 lupdate.depends = $$SOURCES $$HEADERS $$FORMS $$TRANSLATIONS
 
-lrelease.commands = $$[QT_INSTALL_BINS]/lrelease kitchentimer.pro
+lrelease.commands = $$[QT_INSTALL_BINS]/lrelease $$APPLICATION_NAME.pro
 lupdate.depends = $$TRANSLATIONS
 
 QMAKE_EXTRA_TARGETS += lupdate lrelease
@@ -78,16 +80,16 @@ android {
 android_build.commands = make && make install INSTALL_ROOT=./android-build/ && $$[QT_INSTALL_BINS]/androiddeployqt --output ./android-build/
 android_build_release.commands = make && make install INSTALL_ROOT=./android-build/ && $$[QT_INSTALL_BINS]/androiddeployqt --release --output ./android-build/
 android_install.commands = adb install ./android-build/bin/QtApp-debug.apk
-android_uninstall.commands = adb uninstall com.brandymint.kitchentimer
-android_reinstall.commands = adb uninstall com.brandymint.kitchentimer; adb install ./android-build/bin/QtApp-debug.apk
-android_exec.commands = adb shell am start -n com.brandymint.kitchentimer/org.qtproject.qt5.android.bindings.QtActivity
+android_uninstall.commands = adb uninstall com.brandymint.$$APPLICATION_NAME
+android_reinstall.commands = adb uninstall com.brandymint.$$APPLICATION_NAME; adb install ./android-build/bin/QtApp-debug.apk
+android_exec.commands = adb shell am start -n com.brandymint.$$APPLICATION_NAME/org.qtproject.qt5.android.bindings.QtActivity
 run.commands = make -j 4 android_build && make android_reinstall && make android_exec
 
 QMAKE_EXTRA_TARGETS += android_build android_build_release android_install android_uninstall android_reinstall android_exec run
 }
 
-unix:!android {
-run.commands = make && ./kitchentimer
+!android:!ios {
+run.commands = make && ./$$TARGET
 QMAKE_EXTRA_TARGETS += run
 }
 
@@ -102,7 +104,7 @@ RESOURCES += resources/audio-stereo/audio-stereo.qrc
 
 ios {
 fonts.files = "resources/fonts/Cartonsix NC.ttf"
-fonts.path = resources/fonts
+fonts.path = fonts
 QMAKE_BUNDLE_DATA += fonts
 QMAKE_INFO_PLIST = Qt_Info.plist
 }
