@@ -9,17 +9,6 @@ ios {
 QTPLUGIN += qtaudio_coreaudio
 }
 
-
-DEFINES += "KITCHENTIMER_SETTINGS_COMPANY_NAME=\"\\\"Brandy Mint\\\"\""
-DEFINES += "KITCHENTIMER_SETTINGS_PRODUCT_NAME=\"\\\"Kitchen Timer\\\"\""
-
-DEFINES += KITCHENTIMER_ANIMATION_REPAINT_TIMEOUT_MS=10
-DEFINES += KITCHENTIMER_LONG_PRESS_TIMEOUT_MS=1000
-
-DEFINES += KITCHENTIMER_INTRO_TIMEOUT_MS=1000
-
-# DEFINES += KITCHENTIMER_DEBUG_BUILD=1
-
 QMAKE_CXXFLAGS += "-include configuration.h"
 
 
@@ -101,6 +90,13 @@ RESOURCES += resources/audio-mono/audio-mono.qrc
 }
 ios {
 RESOURCES += resources/audio-stereo/audio-stereo.qrc
+}
+
+ios {
+fonts.files = "resources/fonts/Cartonsix NC.ttf"
+fonts.path = resources/fonts
+QMAKE_BUNDLE_DATA += fonts
+QMAKE_INFO_PLIST = Qt_Info.plist
 }
 
 

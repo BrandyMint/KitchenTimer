@@ -188,7 +188,5 @@ void AudioSequencer::run ()
 	delete audio_worker;
     } else {
         qCritical ("Audio audio format not supported by backend, cannot play audio.");
-
-	exec ();
     }
 }
