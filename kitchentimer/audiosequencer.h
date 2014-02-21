@@ -40,7 +40,7 @@ class AudioWorker: public QThread
     Q_OBJECT
 
 public:
-    AudioWorker (bool);
+    AudioWorker (QAudioFormat);
     ~AudioWorker ();
 
 public slots:

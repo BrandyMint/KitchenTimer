@@ -74,22 +74,9 @@ void AudioChannel::handleAudioOutputStateChanged (QAudio::State new_state)
 }
 
 
-AudioWorker::AudioWorker (bool audio_enabled)
-    : audio_enabled (audio_enabled), current_slide_channel (0)
+AudioWorker::AudioWorker (QAudioFormat format)
+    : audio_enabled (true), current_slide_channel (0)
 {
-    QAudioFormat format;
-
-    format.setSampleRate (22050);
-    format.setChannelCount (1);
-    format.setSampleSize (16);
-    format.setCodec ("audio/pcm");
-    format.setByteOrder (QAudioFormat::LittleEndian);
-    format.setSampleType (QAudioFormat::SignedInt);
-
-    QAudioDeviceInfo info (QAudioDeviceInfo::defaultOutputDevice ());
-    if (!info.isFormatSupported (format))
-        qCritical ("Raw audio format not supported by backend, cannot play audio.");
-
     alarm_channel = new AudioChannel (format);
     event_channel = new AudioChannel (format);
     click_channel = new AudioChannel (format);
@@ -166,22 +153,42 @@ AudioSequencer::~AudioSequencer ()
 }
 void AudioSequencer::run ()
 {
-    AudioWorker *audio_worker = new AudioWorker (true);
+    QAudioFormat format;
+
+    format.setSampleRate (22050);
+#ifdef Q_OS_MAC
+    format.setChannelCount (2);
+#else
+    format.setChannelCount (1);
+#endif
+    format.setSampleSize (16);
+    format.setCodec ("audio/pcm");
+    format.setByteOrder (QAudioFormat::LittleEndian);
+    format.setSampleType (QAudioFormat::SignedInt);
+
+    QAudioDeviceInfo info (QAudioDeviceInfo::defaultOutputDevice ());
+    if (info.isFormatSupported (format)) {
+	AudioWorker *audio_worker = new AudioWorker (format);
     
-    audio_worker->setAudioEnabled (app_manager->getAudioEnabled ());
+	audio_worker->setAudioEnabled (app_manager->getAudioEnabled ());
 
-    connect (this, SIGNAL (enqueueAlarm ()), audio_worker, SLOT (playAlarm ()));
-    connect (this, SIGNAL (enqueueManualAlarm ()), audio_worker, SLOT (playManualAlarm ()));
-    connect (this, SIGNAL (enqueueTimerStart ()), audio_worker, SLOT (playTimerStart ()));
+	connect (this, SIGNAL (enqueueAlarm ()), audio_worker, SLOT (playAlarm ()));
+	connect (this, SIGNAL (enqueueManualAlarm ()), audio_worker, SLOT (playManualAlarm ()));
+	connect (this, SIGNAL (enqueueTimerStart ()), audio_worker, SLOT (playTimerStart ()));
 
-    connect (this, SIGNAL (enqueueAnalogTimerPress ()), audio_worker, SLOT (playAnalogTimerPress ()));
-    connect (this, SIGNAL (enqueueAnalogTimerRelease ()), audio_worker, SLOT (playAnalogTimerRelease ()));
-    connect (this, SIGNAL (enqueueAnalogTimerSlide ()), audio_worker, SLOT (playAnalogTimerSlide ()));
+	connect (this, SIGNAL (enqueueAnalogTimerPress ()), audio_worker, SLOT (playAnalogTimerPress ()));
+	connect (this, SIGNAL (enqueueAnalogTimerRelease ()), audio_worker, SLOT (playAnalogTimerRelease ()));
+	connect (this, SIGNAL (enqueueAnalogTimerSlide ()), audio_worker, SLOT (playAnalogTimerSlide ()));
 
-    connect (app_manager, SIGNAL (valueChangedAudioEnabled (bool)), audio_worker, SLOT (setAudioEnabled (bool)));
-    connect (this, SIGNAL (enqueueStopAlarm ()), audio_worker, SLOT (stopAlarm ()));
+	connect (app_manager, SIGNAL (valueChangedAudioEnabled (bool)), audio_worker, SLOT (setAudioEnabled (bool)));
+	connect (this, SIGNAL (enqueueStopAlarm ()), audio_worker, SLOT (stopAlarm ()));
 
-    exec ();
+	exec ();
 
-    delete audio_worker;
+	delete audio_worker;
+    } else {
+        qCritical ("Audio audio format not supported by backend, cannot play audio.");
+
+	exec ();
+    }
 }
