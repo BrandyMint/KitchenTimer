@@ -6,7 +6,6 @@
 
 
 MainWindow::MainWindow ()
-    : QStackedWidget ()
 {
     addWidget (page_intro = new PageIntro (this));
     addWidget (page_timers = new PageTimers (this));

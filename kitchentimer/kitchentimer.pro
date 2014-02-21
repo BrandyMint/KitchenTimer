@@ -1,8 +1,16 @@
+android {
 CONFIG += qt release
-QT += widgets multimedia gui-private svg
+QT += widgets multimedia svg androidextras opengl gui-private 
+} ios {
+CONFIG += qt release
+QT += widgets multimedia svg opengl
+} !android:!ios {
+CONFIG += qt release
+QT += widgets multimedia svg opengl
+}
+
 
 android {
-QT += androidextras opengl
 ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android-sources
 }
 ios {
