@@ -106,7 +106,7 @@ ios {
 fonts.files = "resources/fonts/Cartonsix NC.ttf"
 fonts.path = fonts
 QMAKE_BUNDLE_DATA += fonts
-QMAKE_INFO_PLIST = Qt_Info.plist
+QMAKE_INFO_PLIST = "ios-sources/Qt_Info.plist"
 }
 
 
