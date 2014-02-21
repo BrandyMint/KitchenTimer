@@ -21,7 +21,7 @@
             <!-- Run with local libs -->
             <meta-data android:name="android.app.use_local_qt_libs" android:value="1"/>
             <meta-data android:name="android.app.libs_prefix" android:value="/data/local/tmp/qt/"/>
-            <meta-data android:name="android.app.load_local_libs" android:value="plugins/platforms/android/libqtforandroidGL.so:lib/libQt5Xml.so:lib/libQt5OpenGL.so:plugins/mediaservice/libqtmedia_android.so:lib/libQt5MultimediaQuick_p.so"/>
+            <meta-data android:name="android.app.load_local_libs" android:value="plugins/platforms/android/libqtforandroid.so:plugins/mediaservice/libqtmedia_android.so:lib/libQt5MultimediaQuick_p.so"/>
             <meta-data android:name="android.app.load_local_jars" android:value="jar/QtAndroid.jar:jar/QtAndroidAccessibility.jar:jar/QtAndroid-bundled.jar:jar/QtAndroidAccessibility-bundled.jar:jar/QtMultimedia.jar:jar/QtMultimedia-bundled.jar"/>
             <meta-data android:name="android.app.static_init_classes" android:value="org.qtproject.qt5.android.multimedia.QtMultimediaUtils:org.qtproject.qt5.android.multimedia.QtMultimediaUtils"/>
             <!--  Messages maps -->

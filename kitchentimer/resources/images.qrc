@@ -1,0 +1,28 @@
+<!DOCTYPE RCC><RCC version="1.0">
+  <qresource prefix="/">
+    <file>images/background.png</file>
+    <file>images/logo.png</file>
+    <file>images/button-stick.png</file>
+    <file>images/previous-timer.png</file>
+    <file>images/next-timer.png</file>
+    <file>images/previous-dish.png</file>
+    <file>images/next-dish.png</file>
+    <file>images/current-timer.png</file>
+    <file>images/timer-list.png</file>
+    <file>images/audio-enabled.png</file>
+    <file>images/audio-disabled.png</file>
+    <file>images/vibrosignal-enabled.png</file>
+    <file>images/vibrosignal-disabled.png</file>
+    <file>images/audio-enabled.svg</file>
+    <file>images/audio-enabled-pressed.svg</file>
+    <file>images/audio-disabled.svg</file>
+    <file>images/audio-disabled-pressed.svg</file>
+    <file>images/vibrosignal-enabled.svg</file>
+    <file>images/bookmarks.png</file>
+    <file>images/reference-close.png</file>
+    <file>images/reference-return.png</file>
+    <file>images/reference-search.png</file>
+    <file>images/analog-timer-core.png</file>
+    <file>images/analog-timer-handle.png</file>
+  </qresource>
+</RCC>

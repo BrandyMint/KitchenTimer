@@ -1,0 +1,25 @@
+<!DOCTYPE RCC><RCC version="1.0">
+  <qresource prefix="/audio/">
+    <!-- In-memory resident resources -->
+    <file>audio-enabled.pcm</file>
+    <file>alarm.pcm</file>
+    <file>alarm-manual.pcm</file>
+    <file>timer-start.pcm</file>
+    <file>analog-timer-press.pcm</file>
+    <file>analog-timer-release.pcm</file>
+    <file>analog-timer-slide/01.pcm</file>
+    <file>analog-timer-slide/02.pcm</file>
+    <file>analog-timer-slide/03.pcm</file>
+    <file>analog-timer-slide/04.pcm</file>
+    <file>analog-timer-slide/05.pcm</file>
+    <file>analog-timer-slide/06.pcm</file>
+    <file>analog-timer-slide/07.pcm</file>
+    <file>analog-timer-slide/08.pcm</file>
+    <file>analog-timer-slide/09.pcm</file>
+    <file>analog-timer-slide/10.pcm</file>
+    <file>analog-timer-slide/11.pcm</file>
+    <file>analog-timer-slide/12.pcm</file>
+    <file>analog-timer-slide/13.pcm</file>
+    <file>analog-timer-slide/14.pcm</file>
+  </qresource>
+</RCC>

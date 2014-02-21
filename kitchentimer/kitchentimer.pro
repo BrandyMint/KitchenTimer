@@ -2,8 +2,11 @@ CONFIG += qt release
 QT += widgets multimedia gui-private svg
 
 android {
-QT += androidextras
+QT += androidextras opengl
 ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android-sources
+}
+ios {
+QTPLUGIN += qtaudio_coreaudio
 }
 
 
@@ -93,7 +96,15 @@ run.commands = make && ./kitchentimer
 QMAKE_EXTRA_TARGETS += run
 }
 
-RESOURCES += resources/kitchentimer.qrc
+RESOURCES += resources/images.qrc resources/misc.qrc
+
+android {
+RESOURCES += resources/audio-mono/audio-mono.qrc
+}
+ios {
+RESOURCES += resources/audio-stereo/audio-stereo.qrc
+}
+
 
 MOC_DIR = .moc
 OBJECTS_DIR = .obj
