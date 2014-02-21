@@ -25,8 +25,9 @@ void AudioChannel::play (const QString &source_name)
 {
     looped = false;
     audio_output->reset ();
-    source_file->close ();
     if (enabled) {
+	if (source_file->isOpen ())
+	    source_file->close ();
 	source_file->setFileName (source_name);
 	source_file->open (QIODevice::ReadOnly);
 	audio_output->start (source_file);
@@ -36,11 +37,12 @@ void AudioChannel::playLooped (const QString &source_name)
 {
     looped = true;
     audio_output->reset ();
-    source_file->close ();
 #ifdef KITCHENTIMER_DEBUG_BUILD
     network_log->log (QString ().sprintf ("AudioChannel::playLooped (), enabled: %d", int (enabled)));
 #endif
     if (enabled) {
+	if (source_file->isOpen ())
+	    source_file->close ();
 	source_file->setFileName (source_name);
 	source_file->open (QIODevice::ReadOnly);
 	audio_output->start (source_file);
@@ -50,7 +52,6 @@ void AudioChannel::stop ()
 {
     looped = false;
     audio_output->reset ();
-    source_file->close ();
 }
 void AudioChannel::setEnabled (bool new_enabled)
 {
@@ -62,7 +63,6 @@ void AudioChannel::setEnabled (bool new_enabled)
     } else {
 	audio_output->setVolume (0.0);
 	audio_output->reset ();
-	source_file->close ();
     }
 }
 void AudioChannel::handleAudioOutputStateChanged (QAudio::State new_state)

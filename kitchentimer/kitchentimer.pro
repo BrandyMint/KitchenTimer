@@ -30,7 +30,6 @@ HEADERS += configuration.h \
            mainwindow.h \
            pageintro.h \
            pagetimers.h \
-           pagedishselect.h \
            pagesettings.h \
            timer.h \
            referenceitem.h \
@@ -53,7 +52,6 @@ SOURCES += main.cpp \
            mainwindow.cpp \
            pageintro.cpp \
            pagetimers.cpp \
-           pagedishselect.cpp \
            pagesettings.cpp \
            timer.cpp \
            referenceitem.cpp \
@@ -98,7 +96,7 @@ QMAKE_EXTRA_TARGETS += run
 
 RESOURCES += resources/images.qrc resources/misc.qrc
 
-android {
+!ios {
 RESOURCES += resources/audio-mono/audio-mono.qrc
 }
 ios {
