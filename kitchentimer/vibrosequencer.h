@@ -21,8 +21,6 @@ public:
     ~VibroWorker ();
 
 public slots:
-    void raiseApplication ();
-
     void playAlarm ();
     void playTimerStart ();
 

@@ -4,6 +4,10 @@
 #include "pagesettings.h"
 #include "applicationmanager.h"
 
+#ifdef Q_OS_ANDROID
+#  include <QAndroidJniEnvironment>
+#  include <QAndroidJniObject>
+#endif
 
 MainWindow::MainWindow ()
 {
@@ -77,7 +81,12 @@ void MainWindow::signalManualAlarm ()
 }
 void MainWindow::showAbove ()
 {
-    show ();
-    activateWindow ();
-    raise ();
+#ifdef Q_OS_ANDROID // TODO: Implement object method
+    // JClass_Application = jni_env->FindClass ("com/brandymint/kitchentimer/MainActivity");
+    // if (JClass_Application)
+    // 	JMethod_wake = jni_env->GetMethodID (JClass_Application, "wake", "()V");
+    QAndroidJniObject::callStaticMethod<void> ("com/brandymint/kitchentimer/MainActivity",
+					       "wake",
+					       "()V");
+#endif
 }

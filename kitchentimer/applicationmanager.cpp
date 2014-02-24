@@ -2,7 +2,9 @@
 
 #include <QSettings>
 #include <QApplication>
-#include <QTcpSocket>
+#ifdef KITCHENTIMER_DEBUG_BUILD
+#  include <QTcpSocket>
+#endif
 
 static ApplicationManager *instance = NULL;
 
@@ -28,7 +30,7 @@ NetworkLog::NetworkLog ()
     network_log_instance = this;
 
     socket = new QTcpSocket ();
-    socket->connectToHost ("192.168.0.102", 9938);
+    socket->connectToHost ("192.168.0.13", 9938);
     if (!socket->waitForConnected (3000)) {
 	qCritical ("Couldn't connect to debug server, exiting...");
     }
@@ -111,10 +113,6 @@ bool ApplicationManager::getAudioEnabled ()
 void ApplicationManager::setAudioEnabled (bool new_value)
 {
     audio_enabled = new_value;
-    QSettings settings (KITCHENTIMER_SETTINGS_COMPANY_NAME, KITCHENTIMER_SETTINGS_PRODUCT_NAME);
-    settings.beginGroup ("General");
-    settings.setValue ("audio_enabled", audio_enabled);
-    settings.endGroup ();
     emit valueChangedAudioEnabled (audio_enabled);
 }
 void ApplicationManager::toggleAudioEnabled ()

@@ -44,46 +44,6 @@ VibroWorker::VibroWorker ()
 VibroWorker::~VibroWorker ()
 {
 }
-void VibroWorker::raiseApplication ()
-{
-#ifdef Q_OS_ANDROID
-    QPlatformNativeInterface *interface = QApplication::platformNativeInterface ();
-    jobject objActivity = (jobject) interface->nativeResourceForIntegration ("QtActivity");
-    
-#ifdef KITCHENTIMER_DEBUG_BUILD
-    network_log->log ("TODO: Raise application here");
-#endif
-
-    jclass classActivity = jni_env->FindClass ("android/app/Activity");
-    jclass classIntent = jni_env->FindClass ("android/content/Intent");
-    if (classActivity && classIntent) {
-	jmethodID IntentConstructor = jni_env->GetMethodID (classIntent, "<init>", "(Landroid/content/Context;Ljava.lang.Class;)V");
-	
-#ifdef KITCHENTIMER_DEBUG_BUILD
-	network_log->log (QString ().sprintf ("GOT classActivity: %p", classActivity));
-	network_log->log (QString ().sprintf ("GOT classIntent: %p", classIntent));
-	network_log->log (QString ().sprintf ("GOT IntentConstructor: %p", IntentConstructor));
-#endif
-	if (IntentConstructor) {
-	    // jobject objIntent = jni_env->NewObject (classIntent, IntentConstructor);
-	    // network_log->log (QString ().sprintf ("GOT objIntent: %p", objIntent));
-	}
-    }
-
-#ifdef KITCHENTIMER_DEBUG_BUILD
-    // network_log->log (QString ().sprintf ("GOT IntentConstructor: %lld", (qint64) IntentConstructor));
-#endif
-    // jmethodID intentAddFlags = jni_env->GetMethodID (classIntent, "addFlags", "(I)Ljava/lang/Object;");
-    
-
-#if 0 // Java code:
-    // Intent homeIntent = new Intent(this, HomeActivity.class);
-    // homeIntent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-    // startActivity(homeIntent);
-#endif
-
-#endif
-}
 void VibroWorker::playAlarm ()
 {
 #ifdef Q_OS_ANDROID
@@ -198,7 +158,6 @@ void VibroWorker::setAudioEnabled (bool new_audio_enabled)
 #ifdef Q_OS_ANDROID
     if (KITCHENTIMER_USE_VIBRATION) {
 	if (!new_audio_enabled) {
-	    raiseApplication (); // TODO: Remove it from here
 	    cancel_vibration_timer.stop ();
 	    int buf[] = {
 		20, 80, 20,

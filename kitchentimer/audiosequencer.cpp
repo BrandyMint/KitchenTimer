@@ -4,7 +4,7 @@
 #include <QAudioOutput>
 #include <QFile>
 
-#define SLIDE_CHANNEL_COUNT 16
+#define SLIDE_CHANNEL_COUNT 4
 
 
 AudioChannel::AudioChannel (QAudioFormat format)
