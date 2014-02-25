@@ -195,7 +195,6 @@ void VibroSequencer::run ()
     VibroWorker *vibro_worker = new VibroWorker ();
     
     connect (this, SIGNAL (enqueueAlarm ()), vibro_worker, SLOT (playAlarm ()));
-    connect (this, SIGNAL (enqueueAlarm ()), vibro_worker, SLOT (raiseApplication ()));
     connect (this, SIGNAL (enqueueTimerStart ()), vibro_worker, SLOT (playTimerStart ()));
 
     connect (this, SIGNAL (enqueueAnalogTimerPress ()), vibro_worker, SLOT (playAnalogTimerPress ()));

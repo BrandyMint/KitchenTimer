@@ -6,6 +6,8 @@
 #include <QAudio>
 #include <QAudioFormat>
 #include <QThread>
+#include <QStringList>
+#include <QTimer>
 
 QT_BEGIN_NAMESPACE
 class QAudioOutput;
@@ -22,17 +24,25 @@ public:
     ~AudioChannel ();
     void play (const QString&);
     void playLooped (const QString&);
-    void stop ();
+    void initLoopedList (const QStringList&, int);
+    void resumeLoopedList ();
     void setEnabled (bool);
-    
+    void keepAlive ();
+    void stop ();
+
 private slots:
     void handleAudioOutputStateChanged (QAudio::State);
+    void cancelLoopedList ();
 
 private:
     QAudioOutput *audio_output;
     QFile *source_file;
     bool enabled;
     bool looped;
+    bool looped_list;
+    QTimer stop_timer;
+    QStringList source_name_list;
+    int stop_timeout_ms;
 };
 
 class AudioWorker: public QThread
@@ -58,12 +68,11 @@ public slots:
 
 private:
     bool audio_enabled;
-    int current_slide_channel;
 
     AudioChannel *alarm_channel;
     AudioChannel *event_channel;
     AudioChannel *click_channel;
-    QList<AudioChannel*> slide_channel_list;
+    AudioChannel *slide_channel;
 };
 
 

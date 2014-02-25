@@ -2,7 +2,6 @@
 #include "applicationmanager.h"
 #include "widgets/analogtimer.h"
 #include "widgets/digitaltimer.h"
-#include "widgets/buttonstick.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -45,13 +44,6 @@ PageTimers::PageTimers (QWidget *parent)
     layout->setRowStretch (3, 10);
     layout->setRowStretch (4, 2);
     
-    button_stick = new ButtonStick (this);
-    button_stick->setAudioEnabled (app_manager->getAudioEnabled ());
-    connect (button_stick, SIGNAL (released ()), app_manager, SLOT (toggleAudioEnabled ()));
-    connect (app_manager, SIGNAL (valueChangedAudioEnabled (bool)), button_stick, SLOT (setAudioEnabled (bool)));
-    connect (button_stick, SIGNAL (longPressed ()), this, SIGNAL (longPressed ()));
-    connect (button_stick, SIGNAL (longPressed ()), this, SIGNAL (showSettingsPageRequested ()));
-
 #if 0 // Link with Reference
     {
 	QHBoxLayout *hlayout = new QHBoxLayout ();
@@ -88,11 +80,6 @@ PageTimers::~PageTimers ()
 }
 void PageTimers::updateContent ()
 {
-}
-void PageTimers::resizeEvent (QResizeEvent *event)
-{
-    button_stick->adjustGeometry (rect ());
-    Background::resizeEvent (event);
 }
 void PageTimers::clearCurrentAlarms ()
 {

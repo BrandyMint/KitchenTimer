@@ -389,6 +389,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	QColor shadow_color (0xbb, 0x9b, 0x79);
 	p.setPen (text_color);
 
+	QPoint shadow_offset = QPoint (estimated_char_bounding_size.height ()*0.03, estimated_char_bounding_size.height ()*0.045);
 	const QRect &current_rect = rect ();
 	int base_y_start = current_rect.height () - estimated_char_bounding_size.height () - estimated_arrow_bounding_size.width ();
 	if (timer->getPeriod ().isValid () && !edit_mode.isEnabled ()) { // Period
@@ -422,7 +423,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 					    base_y_start);
 		for (int i = 0; i < 2; ++i) {
 		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
-		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size),
+		    p.drawText (QRect (base_point, estimated_char_bounding_size),
 				Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
 				hour_text.mid (i, 1));
 		    base_point.setX (base_point.x () + estimated_char_bounding_size.width ());
@@ -433,14 +434,14 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 					    + estimated_separator_bounding_size.width ()/2,
 					    base_y_start);
 		p.setCompositionMode (QPainter::CompositionMode_Multiply);
-		p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
+		p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
 	    }
 	    {
 		QPoint base_point = QPoint ((current_rect.width () - estimated_char_bounding_size.width ()*2)/2,
 					    base_y_start);
 		for (int i = 0; i < 2; ++i) {
 		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
-		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+		    p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
 				minute_text.mid (i, 1));
 		    base_point.setX (base_point.x () + estimated_char_bounding_size.width ());
 		}
@@ -450,7 +451,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 					    - estimated_separator_bounding_size.width ()/2,
 					    base_y_start);
 		p.setCompositionMode (QPainter::CompositionMode_Multiply);
-		p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
+		p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
 	    }
 	    {
 		QPoint base_point = QPoint ((current_rect.width () + estimated_char_bounding_size.width ()*2)/2
@@ -458,7 +459,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 					    base_y_start);
 		for (int i = 0; i < 2; ++i) {
 		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
-		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+		    p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
 				second_text.mid (i, 1));
 		    base_point.setX (base_point.x () + estimated_char_bounding_size.width ());
 		}
@@ -477,13 +478,6 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	    p.setPen (QColor (0xbb, 0x9b, 0x79));
 
 	    {
-		// QTransform tr;
-		// int dx = current_rect.x () - estimated_char_bounding_size.width ()*2 - estimated_separator_bounding_size.width ()*2;
-		// int dy = current_rect.y ();
-		// tr.translate (dx, dy);
-		// tr.scale (0.5, 0.5);
-		// tr.translate (-dx, -dy);
-		// p.setWorldTransform (tr);
 		p.drawText (QRect (current_rect.x () - estimated_char_bounding_size.width ()*2 - estimated_separator_bounding_size.width ()*2,
 				   current_rect.y (),
 				   current_rect.width (),
@@ -492,26 +486,12 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	    }
 
 	    {
-		// QTransform tr;
-		// int dx = current_rect.x ();
-		// int dy = current_rect.y ();
-		// tr.translate (dx, dy);
-		// tr.scale (0.5, 0.5);
-		// tr.translate (-dx, -dy);
-		// p.setWorldTransform (tr);
 		p.drawText (QRect (current_rect.x (), current_rect.y (),
 				   current_rect.width (), current_rect.height ()),
 			    Qt::AlignBottom | Qt::AlignHCenter | Qt::TextDontClip, "мин");
 	    }
 
 	    {
-		// QTransform tr;
-		// int dx = current_rect.x () + estimated_char_bounding_size.width ()*2 + estimated_separator_bounding_size.width ()*2;
-		// int dy = current_rect.y ();
-		// tr.translate (dx, dy);
-		// tr.scale (0.5, 0.5);
-		// tr.translate (-dx, -dy);
-		// p.setWorldTransform (tr);
 		p.drawText (QRect (current_rect.x () + estimated_char_bounding_size.width ()*2 + estimated_separator_bounding_size.width ()*2,
 				   current_rect.y (),
 				   current_rect.width (),
@@ -529,7 +509,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	    for (int i = 0; i < 2; ++i) {
 		p.setPen (shadow_color);
 		p.setCompositionMode (QPainter::CompositionMode_Multiply);
-		p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+		p.drawText (QRect (base_point + shadow_offset, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
 			    hour_text.mid (i, 1));
 		p.setPen (text_color);
 		p.setCompositionMode (QPainter::CompositionMode_SourceOver);
@@ -544,7 +524,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 					base_y_start);
 	    p.setPen (shadow_color);
 	    p.setCompositionMode (QPainter::CompositionMode_Multiply);
-	    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
+	    p.drawText (QRect (base_point + shadow_offset, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
 	    p.setPen (text_color);
 	    p.setCompositionMode (QPainter::CompositionMode_SourceOver);
 	    p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
@@ -555,7 +535,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	    for (int i = 0; i < 2; ++i) {
 		p.setPen (shadow_color);
 		p.setCompositionMode (QPainter::CompositionMode_Multiply);
-		p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+		p.drawText (QRect (base_point + shadow_offset, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
 			    minute_text.mid (i, 1));
 		p.setPen (text_color);
 		p.setCompositionMode (QPainter::CompositionMode_SourceOver);
@@ -570,7 +550,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 					base_y_start);
 	    p.setPen (shadow_color);
 	    p.setCompositionMode (QPainter::CompositionMode_Multiply);
-	    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
+	    p.drawText (QRect (base_point + shadow_offset, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
 	    p.setPen (text_color);
 	    p.setCompositionMode (QPainter::CompositionMode_SourceOver);
 	    p.drawText (QRect (base_point, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip, ":");
@@ -598,7 +578,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 		    p.setWorldTransform (tr);
 		    p.setPen (c1);
 		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
-		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+		    p.drawText (QRect (base_point + shadow_offset, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
 				second_text.mid (0, 1));
 		    p.setPen (c2);
 		    p.setCompositionMode (QPainter::CompositionMode_SourceOver);
@@ -619,7 +599,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 		    p.setWorldTransform (tr);
 		    p.setPen (c1);
 		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
-		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+		    p.drawText (QRect (base_point + shadow_offset, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
 				second_text.mid (1, 1));
 		    p.setPen (c2);
 		    p.setCompositionMode (QPainter::CompositionMode_SourceOver);
@@ -648,7 +628,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 		    p.setWorldTransform (tr);
 		    p.setPen (shadow_color);
 		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
-		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+		    p.drawText (QRect (base_point + shadow_offset, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
 				second_text.mid (0, 1));
 		    p.setPen (text_color);
 		    p.setCompositionMode (QPainter::CompositionMode_SourceOver);
@@ -668,7 +648,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 		    p.setWorldTransform (tr);
 		    p.setPen (shadow_color);
 		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
-		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+		    p.drawText (QRect (base_point + shadow_offset, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
 				second_text.mid (1, 1));
 		    p.setPen (text_color);
 		    p.setCompositionMode (QPainter::CompositionMode_SourceOver);
@@ -685,7 +665,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 		for (int i = 0; i < 2; ++i) {
 		    p.setPen (shadow_color);
 		    p.setCompositionMode (QPainter::CompositionMode_Multiply);
-		    p.drawText (QRect (base_point + QPoint (2, 3), estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
+		    p.drawText (QRect (base_point + shadow_offset, estimated_char_bounding_size), Qt::AlignCenter | Qt::AlignHCenter | Qt::TextDontClip,
 				second_text.mid (i, 1));
 		    p.setPen (text_color);
 		    p.setCompositionMode (QPainter::CompositionMode_SourceOver);

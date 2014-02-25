@@ -18,7 +18,6 @@ class Timer;
 class AnalogTimer;
 class ClickableLabel;
 class DigitalTimer;
-class ButtonStick;
 
 
 class PageTimers: public Background
@@ -32,9 +31,6 @@ public:
 public slots:
     void updateContent ();
 
-protected:
-    void resizeEvent (QResizeEvent*);
-
 private slots:
     void clearCurrentAlarms ();
     void enterEditMode ();
@@ -45,7 +41,6 @@ private slots:
     void startTirednessTimer ();
 
 private:
-    ButtonStick *button_stick;
     AnalogTimer *analog_timer;
     DigitalTimer *digital_timer;
     QTime dial_value;

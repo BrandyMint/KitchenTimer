@@ -4,27 +4,32 @@
 #include <QAudioOutput>
 #include <QFile>
 
-#define SLIDE_CHANNEL_COUNT 4
-
 
 AudioChannel::AudioChannel (QAudioFormat format)
-    : enabled (true), looped (false)
+    : enabled (true), looped (false), looped_list (false)
 {
     audio_output = new QAudioOutput (format);
     source_file = new QFile;
+    stop_timer.setSingleShot (true);
     connect (audio_output, SIGNAL (stateChanged (QAudio::State)), this, SLOT (handleAudioOutputStateChanged (QAudio::State)));
+    connect (&stop_timer, SIGNAL (timeout ()), this, SLOT (cancelLoopedList ()));
 }
 AudioChannel::~AudioChannel ()
 {
     audio_output->setVolume (0.0);
     audio_output->reset ();
+    stop_timer.stop ();
+    if (source_file->isOpen ())
+	source_file->close ();
     delete audio_output;
     delete source_file;
 }   
 void AudioChannel::play (const QString &source_name)
 {
     looped = false;
+    looped_list = false;
     audio_output->reset ();
+    stop_timer.stop ();
     if (enabled) {
 	if (source_file->isOpen ())
 	    source_file->close ();
@@ -36,10 +41,10 @@ void AudioChannel::play (const QString &source_name)
 void AudioChannel::playLooped (const QString &source_name)
 {
     looped = true;
+    looped_list = false;
+    source_name_list.clear ();
     audio_output->reset ();
-#ifdef KITCHENTIMER_DEBUG_BUILD
-    network_log->log (QString ().sprintf ("AudioChannel::playLooped (), enabled: %d", int (enabled)));
-#endif
+    stop_timer.stop ();
     if (enabled) {
 	if (source_file->isOpen ())
 	    source_file->close ();
@@ -48,10 +53,45 @@ void AudioChannel::playLooped (const QString &source_name)
 	audio_output->start (source_file);
     }
 }
+void AudioChannel::initLoopedList (const QStringList &in_source_name_list, int in_stop_timeout_ms)
+{
+    looped = false;
+    looped_list = false;
+    source_name_list = in_source_name_list;
+    stop_timeout_ms = in_stop_timeout_ms;
+    audio_output->reset ();
+    stop_timer.stop ();
+}
+void AudioChannel::resumeLoopedList ()
+{
+    if (enabled && source_name_list.size ()) {
+	if (looped && looped_list) {
+	    stop_timer.start (stop_timeout_ms);
+	} else {
+	    looped = true;
+	    looped_list = true;
+	    audio_output->reset ();
+	    if (source_file->isOpen ())
+		source_file->close ();
+	    int index = qrand ()%source_name_list.size ();
+	    source_file->setFileName (source_name_list[index]);
+	    source_file->open (QIODevice::ReadOnly);
+	    audio_output->start (source_file);
+	    stop_timer.start (stop_timeout_ms);
+	}
+    }
+}
+void AudioChannel::keepAlive ()
+{
+    if (stop_timer.isActive ())
+	stop_timer.start (stop_timeout_ms);
+}
 void AudioChannel::stop ()
 {
     looped = false;
+    looped_list = false;
     audio_output->reset ();
+    stop_timer.stop ();
 }
 void AudioChannel::setEnabled (bool new_enabled)
 {
@@ -62,40 +102,55 @@ void AudioChannel::setEnabled (bool new_enabled)
 	audio_output->setVolume (1.0);
     } else {
 	audio_output->setVolume (0.0);
-	audio_output->reset ();
+	stop ();
     }
 }
 void AudioChannel::handleAudioOutputStateChanged (QAudio::State new_state)
 {
     if ((new_state == QAudio::IdleState) && looped && enabled) {
-	source_file->reset ();
-	audio_output->start (source_file);
+	if (looped_list) {
+	    if (source_name_list.size ()) {
+		int index = qrand ()%source_name_list.size ();
+		if (source_file->isOpen ())
+		    source_file->close ();
+		source_file->setFileName (source_name_list[index]);
+		source_file->open (QIODevice::ReadOnly);
+		audio_output->start (source_file);
+	    }
+	} else {
+	    source_file->reset ();
+	    audio_output->start (source_file);
+	}
     }
+}
+void AudioChannel::cancelLoopedList ()
+{
+    looped = false;
+    looped_list = false;
 }
 
 
 AudioWorker::AudioWorker (QAudioFormat format)
-    : audio_enabled (true), current_slide_channel (0)
+    : audio_enabled (true)
 {
     alarm_channel = new AudioChannel (format);
     event_channel = new AudioChannel (format);
     click_channel = new AudioChannel (format);
-    for (int i = 0; i < SLIDE_CHANNEL_COUNT; ++i)
-	slide_channel_list.append (new AudioChannel (format));
+    slide_channel = new AudioChannel (format);
+    QStringList name_list;
+    for (int i = 1; i <= 14; ++i)
+	name_list.append (QString ().sprintf (":/audio/analog-timer-slide/%02d.pcm", i));
+    slide_channel->initLoopedList (name_list, KITCHENTIMER_SLIDE_VIBRATION_ON_TIMEOUT);
 }
 AudioWorker::~AudioWorker ()
 {
     delete alarm_channel;
     delete event_channel;
     delete click_channel;
-    for (int i = 0; i < SLIDE_CHANNEL_COUNT; ++i)
-	delete slide_channel_list[i];
+    delete slide_channel;
 }
 void AudioWorker::playAlarm ()
 {
-#ifdef KITCHENTIMER_DEBUG_BUILD
-    network_log->log ("AudioWorker::playAlarm ()");
-#endif
     alarm_channel->playLooped (":/audio/alarm.pcm");
 }
 void AudioWorker::playManualAlarm ()
@@ -116,8 +171,7 @@ void AudioWorker::playAnalogTimerRelease ()
 }
 void AudioWorker::playAnalogTimerSlide ()
 {
-    slide_channel_list[current_slide_channel]->play (QString ().sprintf (":/audio/analog-timer-slide/%02d.pcm", qrand ()%14 + 1));
-    current_slide_channel = (current_slide_channel + 1)%SLIDE_CHANNEL_COUNT;
+    slide_channel->resumeLoopedList ();
 }
 void AudioWorker::playAudioEnabledSignal ()
 {
@@ -131,8 +185,7 @@ void AudioWorker::setAudioEnabled (bool new_audio_enabled)
     alarm_channel->setEnabled (audio_enabled);
     event_channel->setEnabled (audio_enabled);
     click_channel->setEnabled (audio_enabled);
-    for (int i = 0; i < SLIDE_CHANNEL_COUNT; ++i)
-	slide_channel_list[i]->setEnabled (audio_enabled);
+    slide_channel->setEnabled (audio_enabled);
     if (audio_enabled)
 	playAudioEnabledSignal ();
 }
