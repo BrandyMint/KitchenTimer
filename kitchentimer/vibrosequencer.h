@@ -4,14 +4,14 @@
 #define VIBROSEQUENCER_H
 
 #include <QThread>
+#include <QTimer>
 #ifdef Q_OS_ANDROID
-#  include <QTimer>
 #  include <QAndroidJniEnvironment>
 #  include <QAndroidJniObject>
 #  include <qpa/qplatformnativeinterface.h>
 #endif
 
-
+#ifdef Q_OS_ANDROID
 class VibroWorker: public QThread
 {
     Q_OBJECT
@@ -50,6 +50,29 @@ private:
     QTimer cancel_vibration_timer;
 #endif
 };
+#elif defined (Q_OS_MAC)
+class VibroWorker: public QThread
+{
+    Q_OBJECT
+    
+public:
+    VibroWorker ();
+    ~VibroWorker ();
+    
+public slots:
+    void playAlarm ();
+    void playTimerStart ();
+
+    void setAudioEnabled (bool);
+    void stopAlarm ();
+    
+private slots:
+    void callSingleVibration ();
+    
+private:
+    QTimer alarm_repeater;
+};
+#endif
 
 
 class VibroSequencer: public QThread

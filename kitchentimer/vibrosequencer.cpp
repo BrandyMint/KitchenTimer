@@ -1,19 +1,18 @@
 #include "vibrosequencer.h"
 #include "applicationmanager.h"
+#ifdef Q_OS_MAC
+#  include "ios_vibro.h"
+#endif
 
 #include <QApplication>
 
 
+#ifdef Q_OS_ANDROID
 VibroWorker::VibroWorker ()
-    : last_is_alarm (false), last_vibration_looped (false)
-#ifdef Q_OS_ANDROID
-    , mCancel (NULL)
-    , mVibrate (NULL)
-    , mVibratePattern (NULL)
-    , objVibrator (NULL)
-#endif
+    : last_is_alarm (false), last_vibration_looped (false),
+      mCancel (NULL), mVibrate (NULL), mVibratePattern (NULL),
+      objVibrator (NULL)
 {
-#ifdef Q_OS_ANDROID
     QPlatformNativeInterface *interface = QApplication::platformNativeInterface ();
 
     jobject objActivity = (jobject) interface->nativeResourceForIntegration ("QtActivity");
@@ -39,14 +38,12 @@ VibroWorker::VibroWorker ()
 
     cancel_vibration_timer.setSingleShot (true);
     connect (&cancel_vibration_timer, SIGNAL (timeout ()), this, SLOT (cancelLoopedVibration ()));
-#endif
 }
 VibroWorker::~VibroWorker ()
 {
 }
 void VibroWorker::playAlarm ()
 {
-#ifdef Q_OS_ANDROID
     if (KITCHENTIMER_USE_VIBRATION) {
 	cancel_vibration_timer.stop ();
 	int buf[] = {
@@ -62,12 +59,10 @@ void VibroWorker::playAlarm ()
 	if (KITCHENTIMER_USE_VIBRATION)
 	    enqueueVibrationPattern (sizeof (buf)/sizeof (buf[0]), buf, 0);
     }
-#endif
     last_is_alarm = true;
 }
 void VibroWorker::playTimerStart ()
 {
-#ifdef Q_OS_ANDROID
     if (KITCHENTIMER_USE_VIBRATION) {
 	cancel_vibration_timer.stop ();
 	int buf[] = {
@@ -83,7 +78,6 @@ void VibroWorker::playTimerStart ()
 	if (KITCHENTIMER_USE_VIBRATION)
 	    enqueueVibrationPattern (sizeof (buf)/sizeof (buf[0]), buf, -1);
     }
-#endif
     last_is_alarm = false;
 }
 void VibroWorker::playAnalogTimerPress ()
@@ -100,7 +94,6 @@ void VibroWorker::playAnalogTimerRelease ()
 }
 void VibroWorker::playAnalogTimerSlide ()
 {
-#ifdef Q_OS_ANDROID
     if (KITCHENTIMER_USE_VIBRATION) {
 	if (!last_vibration_looped) {
 	    cancel_vibration_timer.stop ();
@@ -113,20 +106,16 @@ void VibroWorker::playAnalogTimerSlide ()
 	}
 	cancel_vibration_timer.start (KITCHENTIMER_SLIDE_VIBRATION_ON_TIMEOUT);
     }
-#endif
 }
 void VibroWorker::enqueueVibration (int length_ms)
 {
-#ifdef Q_OS_ANDROID
     if (KITCHENTIMER_USE_VIBRATION) {
 	if (jni_env && objVibrator && mVibrate)
 	    jni_env->CallVoidMethod (objVibrator, mVibrate, jlong (length_ms));
     }
-#endif
 }
 void VibroWorker::enqueueVibrationPattern (int count, const int *buffer, int repeat)
 {
-#ifdef Q_OS_ANDROID
     if (KITCHENTIMER_USE_VIBRATION) {
 	if (jni_env && objVibrator && mVibratePattern) {
 	    jlong buf[count];
@@ -137,11 +126,9 @@ void VibroWorker::enqueueVibrationPattern (int count, const int *buffer, int rep
 	    jni_env->CallVoidMethod (objVibrator, mVibratePattern, pattern, jint (repeat));
 	}
     }
-#endif
 }
 void VibroWorker::cancelLoopedVibration ()
 {
-#ifdef Q_OS_ANDROID
     if (KITCHENTIMER_USE_VIBRATION) {
 	cancel_vibration_timer.stop ();
 	if (last_vibration_looped) {
@@ -151,11 +138,9 @@ void VibroWorker::cancelLoopedVibration ()
 	    last_is_alarm = false;
 	}
     }
-#endif
 }
 void VibroWorker::setAudioEnabled (bool new_audio_enabled)
 {
-#ifdef Q_OS_ANDROID
     if (KITCHENTIMER_USE_VIBRATION) {
 	if (!new_audio_enabled) {
 	    cancel_vibration_timer.stop ();
@@ -167,11 +152,9 @@ void VibroWorker::setAudioEnabled (bool new_audio_enabled)
 	    last_is_alarm = false;
 	}
     }
-#endif
 }
 void VibroWorker::stopAlarm ()
 {
-#ifdef Q_OS_ANDROID
     if (KITCHENTIMER_USE_VIBRATION) {
 	if (last_is_alarm) {
 	    cancel_vibration_timer.stop ();
@@ -180,8 +163,37 @@ void VibroWorker::stopAlarm ()
 	    last_is_alarm = false;
 	}
     }
-#endif
 }
+#elif defined(Q_OS_MAC)
+VibroWorker::VibroWorker ()
+{
+    alarm_repeater.setSingleShot (false);
+    connect (&alarm_repeater, SIGNAL (timeout ()), this, SLOT (callSingleVibration ()));
+}
+VibroWorker::~VibroWorker ()
+{
+}
+void VibroWorker::playAlarm ()
+{
+    ios_vibro ();
+    alarm_repeater.start (2000);
+}
+void VibroWorker::playTimerStart ()
+{
+    ios_vibro ();
+}
+void VibroWorker::callSingleVibration ()
+{
+    ios_vibro ();
+}
+void VibroWorker::setAudioEnabled (bool /* new_audio_enabled */)
+{
+}
+void VibroWorker::stopAlarm ()
+{
+    alarm_repeater.stop ();
+}
+#endif
 
 
 VibroSequencer::VibroSequencer ()
@@ -197,9 +209,11 @@ void VibroSequencer::run ()
     connect (this, SIGNAL (enqueueAlarm ()), vibro_worker, SLOT (playAlarm ()));
     connect (this, SIGNAL (enqueueTimerStart ()), vibro_worker, SLOT (playTimerStart ()));
 
+#ifdef Q_OS_ANDROID
     connect (this, SIGNAL (enqueueAnalogTimerPress ()), vibro_worker, SLOT (playAnalogTimerPress ()));
     connect (this, SIGNAL (enqueueAnalogTimerRelease ()), vibro_worker, SLOT (playAnalogTimerRelease ()));
     connect (this, SIGNAL (enqueueAnalogTimerSlide ()), vibro_worker, SLOT (playAnalogTimerSlide ()));
+#endif
 
     connect (app_manager, SIGNAL (valueChangedAudioEnabled (bool)), vibro_worker, SLOT (setAudioEnabled (bool)));
     connect (this, SIGNAL (enqueueStopAlarm ()), vibro_worker, SLOT (stopAlarm ()));
