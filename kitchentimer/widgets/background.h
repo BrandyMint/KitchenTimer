@@ -18,6 +18,8 @@ public:
     void setShaded (bool);
     void startShading (int);
     void startUnshading (int);
+    const QImage &getCachedImage ();
+    int getShadeAlpha ();
 
 protected:
     void resizeEvent (QResizeEvent*);
@@ -29,6 +31,7 @@ private:
     Animator animator;
     bool shaded;
     QImage cached_image;
+    int shade_alpha;
 
 signals:
     void pressed ();

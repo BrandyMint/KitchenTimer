@@ -1,7 +1,7 @@
 #include "vibrosequencer.h"
 #include "applicationmanager.h"
 #ifdef Q_OS_MAC
-#  include "ios_vibro.h"
+#  include "ios_common.h"
 #endif
 
 #include <QApplication>
@@ -175,16 +175,16 @@ VibroWorker::~VibroWorker ()
 }
 void VibroWorker::playAlarm ()
 {
-    ios_vibro ();
+    ios_vibrate ();
     alarm_repeater.start (2000);
 }
 void VibroWorker::playTimerStart ()
 {
-    ios_vibro ();
+    ios_vibrate ();
 }
 void VibroWorker::callSingleVibration ()
 {
-    ios_vibro ();
+    ios_vibrate ();
 }
 void VibroWorker::setAudioEnabled (bool /* new_audio_enabled */)
 {
@@ -204,16 +204,15 @@ VibroSequencer::~VibroSequencer ()
 }
 void VibroSequencer::run ()
 {
+#ifdef Q_OS_ANDROID
     VibroWorker *vibro_worker = new VibroWorker ();
     
     connect (this, SIGNAL (enqueueAlarm ()), vibro_worker, SLOT (playAlarm ()));
     connect (this, SIGNAL (enqueueTimerStart ()), vibro_worker, SLOT (playTimerStart ()));
 
-#ifdef Q_OS_ANDROID
     connect (this, SIGNAL (enqueueAnalogTimerPress ()), vibro_worker, SLOT (playAnalogTimerPress ()));
     connect (this, SIGNAL (enqueueAnalogTimerRelease ()), vibro_worker, SLOT (playAnalogTimerRelease ()));
     connect (this, SIGNAL (enqueueAnalogTimerSlide ()), vibro_worker, SLOT (playAnalogTimerSlide ()));
-#endif
 
     connect (app_manager, SIGNAL (valueChangedAudioEnabled (bool)), vibro_worker, SLOT (setAudioEnabled (bool)));
     connect (this, SIGNAL (enqueueStopAlarm ()), vibro_worker, SLOT (stopAlarm ()));
@@ -221,4 +220,17 @@ void VibroSequencer::run ()
     exec ();
 
     delete vibro_worker;
+#elif defined(Q_OS_MAC)
+    VibroWorker *vibro_worker = new VibroWorker ();
+
+    connect (this, SIGNAL (enqueueAlarm ()), vibro_worker, SLOT (playAlarm ()));
+    connect (this, SIGNAL (enqueueTimerStart ()), vibro_worker, SLOT (playTimerStart ()));
+
+    connect (app_manager, SIGNAL (valueChangedAudioEnabled (bool)), vibro_worker, SLOT (setAudioEnabled (bool)));
+    connect (this, SIGNAL (enqueueStopAlarm ()), vibro_worker, SLOT (stopAlarm ()));
+
+    exec ();
+
+    delete vibro_worker;
+#endif
 }

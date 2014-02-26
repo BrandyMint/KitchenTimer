@@ -69,6 +69,11 @@ SOURCES += main.cpp \
            widgets/introbackground.cpp \
            widgets/buttonstick.cpp
 
+ios {
+OBJECTIVE_SOURCES += ios_common.mm
+HEADERS += ios_common.h
+}
+
 TRANSLATIONS = translations/ru.ts
 
 lupdate.commands = $$[QT_INSTALL_BINS]/lupdate $${APPLICATION_NAME}.pro

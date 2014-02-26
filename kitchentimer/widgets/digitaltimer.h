@@ -12,17 +12,19 @@
 #include <QElapsedTimer>
 #include <QPicture>
 
+class Background;
+
+
 class DigitalTimer: public QWidget
 {
     Q_OBJECT
 
 public:
-    DigitalTimer (QWidget* = NULL);
+    DigitalTimer (Background* = NULL);
     ~DigitalTimer ();
     void enterEditMode (int);
     void enterEditModePressed (int, int);
     void leaveEditMode ();
-    bool event (QEvent*);
 
 protected:    
     void resizeEvent (QResizeEvent*);
@@ -50,6 +52,7 @@ private:
 	ScrollMinutePressed,
     };
 
+    Background *background;
     QFont font;
     QFont font2;
     Animator animator;

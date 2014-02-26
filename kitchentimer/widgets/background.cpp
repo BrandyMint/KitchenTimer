@@ -8,7 +8,7 @@
 
 
 Background::Background (QWidget *parent)
-    : QWidget (parent), animator (this, ANIMATION_MIN_FRAME_TIMEOUT), shaded (false)
+    : QWidget (parent), animator (this, ANIMATION_MIN_FRAME_TIMEOUT), shaded (false), shade_alpha (0)
 {
 }
 void Background::resizeEvent (QResizeEvent*)
@@ -56,9 +56,11 @@ void Background::paintEvent (QPaintEvent*)
 {
     QPainter p (this);
     p.drawImage (cached_image.rect (), cached_image, cached_image.rect ());
+    shade_alpha = 0;
     if (shaded || animator.isRunning ()) {
 	p.setPen (Qt::NoPen);
-	p.setBrush (QColor (0, 0, 0, int (animator.phase ()*192)));
+	shade_alpha = int (animator.phase ()*192);
+	p.setBrush (QColor (0, 0, 0, shade_alpha));
 	p.drawRect (rect ());
     }
 }
@@ -79,4 +81,12 @@ void Background::startUnshading (int transition_timeout)
     animator.start (transition_timeout);
     shaded = false;
     update ();
+}
+const QImage &Background::getCachedImage ()
+{
+    return cached_image;
+}
+int Background::getShadeAlpha ()
+{
+    return shade_alpha;
 }

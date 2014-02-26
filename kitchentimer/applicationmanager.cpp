@@ -1,4 +1,7 @@
 #include "applicationmanager.h"
+#ifdef Q_OS_MAC
+#  include "ios_common.h"
+#endif
 
 #include <QSettings>
 #include <QApplication>
@@ -90,6 +93,9 @@ ApplicationManager::ApplicationManager ()
 
 #ifdef KITCHENTIMER_DEBUG_BUILD
     new NetworkLog ();
+#endif
+#ifdef Q_OS_MAC
+    ios_adjust_idle_timeout ();
 #endif
 }
 ApplicationManager::~ApplicationManager ()

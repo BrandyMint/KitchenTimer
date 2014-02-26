@@ -11,11 +11,11 @@
 #  include <qpa/qplatformnativeinterface.h>
 #endif
 
-#ifdef Q_OS_ANDROID
 class VibroWorker: public QThread
 {
     Q_OBJECT
 
+#ifdef Q_OS_ANDROID
 public:
     VibroWorker ();
     ~VibroWorker ();
@@ -41,20 +41,13 @@ private slots:
 private:
     bool last_is_alarm;
     bool last_vibration_looped;
-#ifdef Q_OS_ANDROID
     QAndroidJniEnvironment jni_env;
     jmethodID mCancel;
     jmethodID mVibrate;
     jmethodID mVibratePattern;
     jobject objVibrator;
     QTimer cancel_vibration_timer;
-#endif
-};
 #elif defined (Q_OS_MAC)
-class VibroWorker: public QThread
-{
-    Q_OBJECT
-    
 public:
     VibroWorker ();
     ~VibroWorker ();
@@ -71,8 +64,8 @@ private slots:
     
 private:
     QTimer alarm_repeater;
-};
 #endif
+};
 
 
 class VibroSequencer: public QThread
