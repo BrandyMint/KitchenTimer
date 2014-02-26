@@ -51,6 +51,7 @@ private:
     double unhalt_by_timeout_local_rotation;
     QTimer leave_edit_mode_timer;
 
+    QSize estimated_circle_size;
     QRect estimated_circle_rect;
     QRectF estimated_accum_circle_rect;
     QRect estimated_circle_handle_rect;
@@ -67,6 +68,9 @@ private:
     QImage cached_back_layer;
     QImage cached_analog_timer_handle_layer;
     QImage cached_over_layer;
+#if Q_OS_MAC
+    QImage blend_layer;
+#endif
 
 signals:
     void clearAlarms ();

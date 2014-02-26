@@ -3,8 +3,6 @@ package com.brandymint.kitchentimer;
 import android.content.Context;
 import android.app.Activity;
 import android.app.ActivityManager;
-import android.util.Log;
-import android.content.Intent;
 import android.view.Window;
 import android.view.WindowManager;
 import android.os.Bundle;
@@ -26,7 +24,6 @@ public class MainActivity extends org.qtproject.qt5.android.bindings.QtActivity
 		WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD |
 		WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
 		WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
-		WindowManager.LayoutParams.FLAG_FULLSCREEN |
 		WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED;
 	    if (window != null)
 		window.setFlags (flags, flags);
@@ -34,8 +31,8 @@ public class MainActivity extends org.qtproject.qt5.android.bindings.QtActivity
 
     public void wake_method ()
 	{
-	    final ActivityManager am = (ActivityManager) getSystemService (Context.ACTIVITY_SERVICE);
-	    am.moveTaskToFront (getTaskId (), 0);
+	    final ActivityManager activity_manager = (ActivityManager) getSystemService (Context.ACTIVITY_SERVICE);
+	    activity_manager.moveTaskToFront (getTaskId (), 0);
 	}
     
     public static void wake ()

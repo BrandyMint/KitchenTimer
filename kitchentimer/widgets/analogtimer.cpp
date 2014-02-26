@@ -179,36 +179,36 @@ void AnalogTimer::unhaltEditByTimeout ()
 void AnalogTimer::resizeEvent (QResizeEvent*)
 {
     QPoint start_point (0, 0);
-    QSize circle_size (size ());
-    if (circle_size.width () > circle_size.height ()) {
-	start_point.setX ((circle_size.width () - circle_size.height ()) >> 1);
-	circle_size.setWidth (circle_size.height ());
+    estimated_circle_size = size ();
+    if (estimated_circle_size.width () > estimated_circle_size.height ()) {
+	start_point.setX ((estimated_circle_size.width () - estimated_circle_size.height ()) >> 1);
+	estimated_circle_size.setWidth (estimated_circle_size.height ());
     }
-    if (circle_size.height () > circle_size.width ()) {
+    if (estimated_circle_size.height () > estimated_circle_size.width ()) {
 	start_point.setY (0);
-	circle_size.setHeight (circle_size.width ());
+	estimated_circle_size.setHeight (estimated_circle_size.width ());
     }
-    estimated_circle_rect = QRect (start_point, circle_size);
+    estimated_circle_rect = QRect (start_point, estimated_circle_size);
     estimated_accum_circle_rect = getScaledRect (estimated_circle_rect, 0.89);
     double scale_factor = double (resource_manager->analog_timer_handle_image.width ())/double (resource_manager->analog_timer_core_image.width ());
-    estimated_circle_handle_rect = QRect (int (start_point.x () + circle_size.width ()*(0.5 - scale_factor*0.5) + 0.5),
-					  int (start_point.y () + circle_size.height ()*(0.5 - scale_factor*0.5) + 0.5),
-					  int (circle_size.width ()*scale_factor) + 0.5,
-					  int (circle_size.height ()*scale_factor) + 0.5);
-    estimated_circle_center = QPointF (start_point.x () + circle_size.width ()*0.5, start_point.y () + circle_size.height ()*0.5);
+    estimated_circle_handle_rect = QRect (int (start_point.x () + estimated_circle_size.width ()*(0.5 - scale_factor*0.5) + 0.5),
+					  int (start_point.y () + estimated_circle_size.height ()*(0.5 - scale_factor*0.5) + 0.5),
+					  int (estimated_circle_size.width ()*scale_factor) + 0.5,
+					  int (estimated_circle_size.height ()*scale_factor) + 0.5);
+    estimated_circle_center = QPointF (start_point.x () + estimated_circle_size.width ()*0.5, start_point.y () + estimated_circle_size.height ()*0.5);
     estimated_circle_radius = estimated_circle_rect.width ()*0.5;
     estimated_font_pixel_size = estimated_circle_rect.width ()*0.1;
     font.setPixelSize (estimated_font_pixel_size);
     small_font.setPixelSize (estimated_font_pixel_size*0.75);
-    setFont (font);
     {
-	cached_back_layer = QImage (circle_size, QImage::Format_ARGB32);
+	cached_back_layer = QImage (estimated_circle_size, QImage::Format_ARGB32);
 	cached_back_layer.fill (0);
 
 	QPainter p;
 	p.begin (&cached_back_layer);
 	p.setRenderHint (QPainter::SmoothPixmapTransform, true);
-	p.drawImage (QRect (QPoint (0, 0), circle_size), resource_manager->analog_timer_core_image, resource_manager->analog_timer_core_image.rect ());
+	p.drawImage (QRect (QPoint (0, 0), estimated_circle_size), resource_manager->analog_timer_core_image,
+		     resource_manager->analog_timer_core_image.rect ());
 	p.end ();
     }
     {
@@ -223,7 +223,7 @@ void AnalogTimer::resizeEvent (QResizeEvent*)
 	p.end ();
     }
     {
-	cached_over_layer = QImage (circle_size, QImage::Format_ARGB32);
+	cached_over_layer = QImage (estimated_circle_size, QImage::Format_ARGB32);
 	cached_over_layer.fill (0);
 	
 	QPainter p;
@@ -284,6 +284,12 @@ void AnalogTimer::resizeEvent (QResizeEvent*)
 	}
 	p.end ();
     }
+#ifdef Q_OS_MAC
+    {
+	blend_layer = QImage (estimated_circle_size, QImage::Format_ARGB32);
+	blend_layer.fill (0);
+    }
+#endif
     QRectF handle_rect = getScaledRect (estimated_circle_rect, 0.077519379844961, 0.51162790697674);
     estimated_handle_triangle_points[0] = QPointF (handle_rect.x () + handle_rect.width ()*0.1, handle_rect.y () + handle_rect.height ()*0.12);
     estimated_handle_triangle_points[1] = QPointF (handle_rect.x () + handle_rect.width ()*0.9, handle_rect.y () + handle_rect.height ()*0.12);
@@ -528,6 +534,7 @@ void AnalogTimer::paintEvent (QPaintEvent*)
 
     switch (KITCHENTIMER_ANALOG_TIMER_MODE) {
     case 0: {
+	p.setFont (font);
 	p.setRenderHint (QPainter::Antialiasing, true);
 	p.setRenderHint (QPainter::SmoothPixmapTransform, true);
 	p.setPen (Qt::NoPen);
@@ -645,65 +652,119 @@ void AnalogTimer::paintEvent (QPaintEvent*)
 	int int_angle = int_value%3600;
 	int_angle = ((int_angle + 59)/60)*60;
 	double angle = double (int_angle)*0.1;
+	int full_hours = int_value/3600;
 
 	bool draw_down = down && !edit_mode.isHalted ();
 	double press_scale_factor = draw_down ? 0.97 : 1.0;
 
+	if (estimated_full_hours != full_hours) {
+	    QColor transparent_color (0xff, 0, 0, 0);
+	    QColor current_color (0xff, 0, 0, 0x88);
+	    QColor current2_color (0xff, 0, 0, 0xcc);
+	    QColor current3_color (0xff, 0, 0, 0x66);
+	    QColor full_color (0xff, 0, 0, 0x44);
+	    double tr_l = 4.0;
+	    double current_l = 20.0;
+	    double full_l = 10.0;
+	    double start = 0.64;
+	    double range_f = 1.0 - start;
+	    double range_l = (full_hours + 1.0)*2.0 + full_hours*(tr_l + full_l) + current_l;
+	    double current_circle_radius = estimated_circle_radius*0.89;
+	    estimated_current_grad = QRadialGradient (estimated_circle_center, current_circle_radius);
+	    estimated_current_grad.setColorAt (0.0, transparent_color);
+	    estimated_current_grad.setColorAt (start, transparent_color);
+	    estimated_current_grad.setColorAt (1.0, transparent_color);
+	    estimated_current2_grad = QRadialGradient (estimated_circle_center, current_circle_radius);
+	    estimated_current2_grad.setColorAt (0.0, transparent_color);
+	    estimated_current2_grad.setColorAt (start, transparent_color);
+	    estimated_current2_grad.setColorAt (1.0, transparent_color);
+	    estimated_current3_grad = QRadialGradient (estimated_circle_center, current_circle_radius);
+	    estimated_current3_grad.setColorAt (0.0, transparent_color);
+	    estimated_current3_grad.setColorAt (start, transparent_color);
+	    estimated_current3_grad.setColorAt (1.0, transparent_color);
+	    estimated_full_grad = QRadialGradient (estimated_circle_center, current_circle_radius);
+	    estimated_full_grad.setColorAt (0.0, transparent_color);
+	    estimated_full_grad.setColorAt (start, transparent_color);
+	    estimated_full_grad.setColorAt (1.0, transparent_color);
+	    double off = 0.0;
+	    estimated_current_grad.setColorAt (start + range_f*(off += 1.0)/range_l, current_color);
+	    estimated_current2_grad.setColorAt (start + range_f*(off)/range_l, current2_color);
+	    estimated_current3_grad.setColorAt (start + range_f*(off)/range_l, current3_color);
+	    estimated_current_grad.setColorAt (start + range_f*(off += current_l)/range_l, current_color);
+	    estimated_current2_grad.setColorAt (start + range_f*(off)/range_l, current2_color);
+	    estimated_current3_grad.setColorAt (start + range_f*(off)/range_l, current3_color);
+	    estimated_current_grad.setColorAt (start + range_f*(off += 1.0)/range_l, transparent_color);
+	    estimated_current2_grad.setColorAt (start + range_f*(off)/range_l, transparent_color);
+	    estimated_current3_grad.setColorAt (start + range_f*(off)/range_l, transparent_color);
+	    estimated_full_grad.setColorAt (start + range_f*off/range_l, transparent_color);
+	    for (int i = 0; i < full_hours; ++i) {
+		estimated_full_grad.setColorAt (start + range_f*(off += tr_l)/range_l, transparent_color);
+		estimated_full_grad.setColorAt (start + range_f*(off += 1.0)/range_l, full_color);
+		estimated_full_grad.setColorAt (start + range_f*(off += full_l)/range_l, full_color);
+		estimated_full_grad.setColorAt (start + range_f*(off += 1.0)/range_l, transparent_color);
+	    }
+	    estimated_full_hours = full_hours;
+	}
+#ifdef Q_OS_MAC
+	QPainter p2;
+	blend_layer.fill (0);
+	p2.begin (&blend_layer);
+	p2.drawImage (QRect (QPoint (0, 0), estimated_circle_size), cached_back_layer, cached_back_layer.rect ());
+	p2.setRenderHint (QPainter::Antialiasing, true);
+	p2.setRenderHint (QPainter::SmoothPixmapTransform, true);
+	{
+	    QTransform tr;
+	    tr.translate (-estimated_circle_rect.x (), -estimated_circle_rect.y ());
+	    p2.setWorldTransform (tr);
+	    p2.setPen (Qt::NoPen);
+	    p2.setBrush (estimated_full_grad);
+	    p2.drawPie (estimated_accum_circle_rect, 0, 5760);
+	    p2.setBrush (estimated_current_grad);
+	    if (app_manager->getCurrentTimer ()->isRunning ()) {
+		if (int_angle) {
+		    p2.drawPie (estimated_accum_circle_rect, 1440, 96 - angle*16);
+		    if (lifetime_elapsed_timer.elapsed ()%500 < 250)
+			p2.setBrush (estimated_current2_grad);
+		    else
+			p2.setBrush (estimated_current3_grad);
+		    p2.drawPie (estimated_accum_circle_rect, 1536 - angle*16, -96);
+		}
+	    } else {
+		p2.drawPie (estimated_accum_circle_rect, 1440, -angle*16);
+	    }
+	    p2.resetTransform ();
+	}
+	{
+	    QTransform tr;
+	    tr.translate (-estimated_circle_rect.x (), -estimated_circle_rect.y ());
+	    tr.translate (estimated_circle_center.x (), estimated_circle_center.y ());
+	    tr.rotate (angle);
+	    tr.scale (press_scale_factor, press_scale_factor);
+	    tr.translate (-estimated_circle_center.x (), -estimated_circle_center.y ());
+	    p2.setWorldTransform (tr);
+	    p2.drawImage (estimated_circle_handle_rect, cached_analog_timer_handle_layer,
+			  cached_analog_timer_handle_layer.rect ());
+	    p2.setPen (Qt::NoPen);
+	    p2.setBrush (QColor (0xbf, 0x00, 0x00));
+	    p2.drawPolygon (estimated_handle_triangle_points, 3);
+	    p2.resetTransform ();
+	}
+	p2.setRenderHint (QPainter::Antialiasing, false);
+	p2.setRenderHint (QPainter::SmoothPixmapTransform, false);
+	{
+	    QTransform tr;
+	    tr.translate (-estimated_circle_rect.x (), -estimated_circle_rect.y ());
+	    p2.setWorldTransform (tr);
+	    p2.drawImage (estimated_circle_rect, cached_over_layer, cached_over_layer.rect ());
+	    p2.resetTransform ();
+	}
+	p2.end ();
+	p.drawImage (estimated_circle_rect, blend_layer, cached_over_layer.rect ());
+#else
 	p.drawImage (estimated_circle_rect, cached_back_layer, cached_back_layer.rect ());
 	p.setRenderHint (QPainter::Antialiasing, true);
 	p.setRenderHint (QPainter::SmoothPixmapTransform, true);
 	{
-	    int full_hours = int_value/3600;
-	    if (estimated_full_hours != full_hours) {
-		QColor transparent_color (0xff, 0, 0, 0);
-		QColor current_color (0xff, 0, 0, 0x88);
-		QColor current2_color (0xff, 0, 0, 0xcc);
-		QColor current3_color (0xff, 0, 0, 0x66);
-		QColor full_color (0xff, 0, 0, 0x44);
-		double tr_l = 4.0;
-		double current_l = 20.0;
-		double full_l = 10.0;
-		double start = 0.64;
-		double range_f = 1.0 - start;
-		double range_l = (full_hours + 1.0)*2.0 + full_hours*(tr_l + full_l) + current_l;
-		double current_circle_radius = estimated_circle_radius*0.89;
-		estimated_current_grad = QRadialGradient (estimated_circle_center, current_circle_radius);
-		estimated_current_grad.setColorAt (0.0, transparent_color);
-		estimated_current_grad.setColorAt (start, transparent_color);
-		estimated_current_grad.setColorAt (1.0, transparent_color);
-		estimated_current2_grad = QRadialGradient (estimated_circle_center, current_circle_radius);
-		estimated_current2_grad.setColorAt (0.0, transparent_color);
-		estimated_current2_grad.setColorAt (start, transparent_color);
-		estimated_current2_grad.setColorAt (1.0, transparent_color);
-		estimated_current3_grad = QRadialGradient (estimated_circle_center, current_circle_radius);
-		estimated_current3_grad.setColorAt (0.0, transparent_color);
-		estimated_current3_grad.setColorAt (start, transparent_color);
-		estimated_current3_grad.setColorAt (1.0, transparent_color);
-		estimated_full_grad = QRadialGradient (estimated_circle_center, current_circle_radius);
-		estimated_full_grad.setColorAt (0.0, transparent_color);
-		estimated_full_grad.setColorAt (start, transparent_color);
-		estimated_full_grad.setColorAt (1.0, transparent_color);
-		double off = 0.0;
-		estimated_current_grad.setColorAt (start + range_f*(off += 1.0)/range_l, current_color);
-		estimated_current2_grad.setColorAt (start + range_f*(off)/range_l, current2_color);
-		estimated_current3_grad.setColorAt (start + range_f*(off)/range_l, current3_color);
-		estimated_current_grad.setColorAt (start + range_f*(off += current_l)/range_l, current_color);
-		estimated_current2_grad.setColorAt (start + range_f*(off)/range_l, current2_color);
-		estimated_current3_grad.setColorAt (start + range_f*(off)/range_l, current3_color);
-		estimated_current_grad.setColorAt (start + range_f*(off += 1.0)/range_l, transparent_color);
-		estimated_current2_grad.setColorAt (start + range_f*(off)/range_l, transparent_color);
-		estimated_current3_grad.setColorAt (start + range_f*(off)/range_l, transparent_color);
-		estimated_full_grad.setColorAt (start + range_f*off/range_l, transparent_color);
-		for (int i = 0; i < full_hours; ++i) {
-		    estimated_full_grad.setColorAt (start + range_f*(off += tr_l)/range_l, transparent_color);
-		    estimated_full_grad.setColorAt (start + range_f*(off += 1.0)/range_l, full_color);
-		    estimated_full_grad.setColorAt (start + range_f*(off += full_l)/range_l, full_color);
-		    estimated_full_grad.setColorAt (start + range_f*(off += 1.0)/range_l, transparent_color);
-		}
-		estimated_full_hours = full_hours;
-	    }
-	    
-
 	    p.setPen (Qt::NoPen);
 	    p.setBrush (estimated_full_grad);
 	    p.drawPie (estimated_accum_circle_rect, 0, 5760);
@@ -735,11 +796,10 @@ void AnalogTimer::paintEvent (QPaintEvent*)
 	    p.drawPolygon (estimated_handle_triangle_points, 3);
 	}
 	p.resetTransform ();
-
 	p.setRenderHint (QPainter::Antialiasing, false);
 	p.setRenderHint (QPainter::SmoothPixmapTransform, false);
 	p.drawImage (estimated_circle_rect, cached_over_layer, cached_over_layer.rect ());
-
+#endif
     } break;
     }
 }
