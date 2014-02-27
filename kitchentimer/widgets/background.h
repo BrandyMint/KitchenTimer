@@ -20,6 +20,8 @@ public:
     void startUnshading (int);
     const QImage &getCachedImage ();
     int getShadeAlpha ();
+
+public slots:
     void update ();
     
 protected:

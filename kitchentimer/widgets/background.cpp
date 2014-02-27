@@ -90,13 +90,14 @@ int Background::getShadeAlpha ()
 }
 void Background::update ()
 {
-    shade_alpha = 0;
     if (shaded || animator.isRunning ())
 	shade_alpha = int (animator.phase ()*192);
-    QWidget::update ();
+    else
+	shade_alpha = 0;
     const QObjectList &child_list = children ();
     for (QObjectList::const_iterator it = child_list.begin (); it != child_list.end (); ++it) {
 	if ((*it)->isWidgetType ())
 	    ((QWidget*) (*it))->update ();
     }
+    QWidget::update ();
 }
