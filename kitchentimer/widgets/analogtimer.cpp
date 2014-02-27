@@ -7,6 +7,7 @@
 #include "analogtimer.h"
 #include "resourcemanager.h"
 #include "applicationmanager.h"
+#include "background.h"
 
 #define MAX_TIME (QTime (5, 59, 0))
 #define MAX_SEC ((6*60 - 1)*60)
@@ -55,8 +56,8 @@ static double shortestRotation (double r1, double r2, bool &clock_wise)
 
 #define ANIMATION_MIN_FRAME_TIMEOUT 250
 
-AnalogTimer::AnalogTimer (QWidget *parent)
-    : QWidget (parent),
+AnalogTimer::AnalogTimer (Background *parent)
+    : QWidget (parent), background (parent),
       font (qApp->font ()),
       small_font (qApp->font ()),
       animator (this, ANIMATION_MIN_FRAME_TIMEOUT),
@@ -71,9 +72,10 @@ AnalogTimer::AnalogTimer (QWidget *parent)
       estimated_circle_radius (0.0),
       estimated_full_hours (-1)
 {
+    setAttribute (Qt::WA_OpaquePaintEvent);
     lifetime_elapsed_timer.start ();
     connect (app_manager->getCurrentTimer (), SIGNAL (timeout ()), &animator, SLOT (stop ()));
-    connect (app_manager->getCurrentTimer (), SIGNAL (newTimeSet ()), this, SLOT (update ()));
+    connect (app_manager->getCurrentTimer (), SIGNAL (newTimeSet ()), background, SLOT (update ()));
     connect (&edit_mode, SIGNAL (unhaltedByTimeout ()), this, SLOT (unhaltEditByTimeout ()));
 }
 AnalogTimer::~AnalogTimer ()
@@ -101,7 +103,7 @@ void AnalogTimer::leaveEditMode ()
     int ms = QTime (0, 0, 0).msecsTo (app_manager->getCurrentTimer ()->getTimeLeft ()); // TODO: Switch to Qt-5.2.0: .msecsSinceStartOfDay ();
     if (ms > 0)
 	animator.start ();
-    update ();
+    background->update ();
 }
 bool AnalogTimer::isSliderDown ()
 {
@@ -173,7 +175,7 @@ void AnalogTimer::unhaltEditByTimeout ()
 	    }		    
 	}
 	emit pressed ();
-	update ();
+	background->update ();
     }
 }
 void AnalogTimer::resizeEvent (QResizeEvent*)
@@ -286,7 +288,7 @@ void AnalogTimer::resizeEvent (QResizeEvent*)
     }
 #ifdef Q_OS_MAC
     {
-	blend_layer = QImage (estimated_circle_size, QImage::Format_ARGB32);
+	blend_layer = QImage (size (), QImage::Format_RGB32);
 	blend_layer.fill (0);
     }
 #endif
@@ -376,7 +378,7 @@ void AnalogTimer::mousePressEvent (QMouseEvent *event)
 		    }		    
 		}
 		edit_mode.unhalt ();
-		update ();
+		background->update ();
 	    }
 	} else {
 	    emit enterEditModeRequested ();
@@ -397,7 +399,7 @@ void AnalogTimer::mouseReleaseEvent (QMouseEvent *event)
 		if (edit_mode.isEnabled () && !edit_mode.isBlocked ())
 		    emit leaveEditModeRequested ();
 	    }
-	    update ();
+	    background->update ();
 	}
     }
 }
@@ -415,7 +417,7 @@ void AnalogTimer::mouseMoveEvent (QMouseEvent *event)
 		if (!edit_mode.isHalted ()) {
 		    edit_mode.halt ();
 		    emit released ();
-		    update ();
+		    background->update ();
 		}
 	    } else if (edit_mode.isHalted ()) {
 		if (edit_mode.isHaltedByTimeout ()) {
@@ -709,13 +711,18 @@ void AnalogTimer::paintEvent (QPaintEvent*)
 	QPainter p2;
 	blend_layer.fill (0);
 	p2.begin (&blend_layer);
-	p2.drawImage (QRect (QPoint (0, 0), estimated_circle_size), cached_back_layer, cached_back_layer.rect ());
+	const QImage &background_image = background->getCachedImage ();
+	p2.drawImage (blend_layer.rect (), background_image, QRect (mapToParent (QPoint (0, 0)), blend_layer.size ()));
+	int shade_alpha = background->getShadeAlpha ();
+	if (shade_alpha) {
+	    p2.setPen (Qt::NoPen);
+	    p2.setBrush (QColor (0, 0, 0, shade_alpha));
+	    p2.drawRect (blend_layer.rect ());
+	}
+	p2.drawImage (estimated_circle_rect, cached_back_layer, cached_back_layer.rect ());
 	p2.setRenderHint (QPainter::Antialiasing, true);
 	p2.setRenderHint (QPainter::SmoothPixmapTransform, true);
 	{
-	    QTransform tr;
-	    tr.translate (-estimated_circle_rect.x (), -estimated_circle_rect.y ());
-	    p2.setWorldTransform (tr);
 	    p2.setPen (Qt::NoPen);
 	    p2.setBrush (estimated_full_grad);
 	    p2.drawPie (estimated_accum_circle_rect, 0, 5760);
@@ -732,11 +739,9 @@ void AnalogTimer::paintEvent (QPaintEvent*)
 	    } else {
 		p2.drawPie (estimated_accum_circle_rect, 1440, -angle*16);
 	    }
-	    p2.resetTransform ();
 	}
 	{
 	    QTransform tr;
-	    tr.translate (-estimated_circle_rect.x (), -estimated_circle_rect.y ());
 	    tr.translate (estimated_circle_center.x (), estimated_circle_center.y ());
 	    tr.rotate (angle);
 	    tr.scale (press_scale_factor, press_scale_factor);
@@ -747,19 +752,12 @@ void AnalogTimer::paintEvent (QPaintEvent*)
 	    p2.setPen (Qt::NoPen);
 	    p2.setBrush (QColor (0xbf, 0x00, 0x00));
 	    p2.drawPolygon (estimated_handle_triangle_points, 3);
-	    p2.resetTransform ();
 	}
+	p2.resetTransform ();
 	p2.setRenderHint (QPainter::Antialiasing, false);
 	p2.setRenderHint (QPainter::SmoothPixmapTransform, false);
-	{
-	    QTransform tr;
-	    tr.translate (-estimated_circle_rect.x (), -estimated_circle_rect.y ());
-	    p2.setWorldTransform (tr);
-	    p2.drawImage (estimated_circle_rect, cached_over_layer, cached_over_layer.rect ());
-	    p2.resetTransform ();
-	}
-	p2.end ();
-	p.drawImage (estimated_circle_rect, blend_layer, cached_over_layer.rect ());
+	p2.drawImage (estimated_circle_rect, cached_over_layer, cached_over_layer.rect ());
+	p.drawImage (rect (), blend_layer, blend_layer.rect ());
 #else
 	p.drawImage (estimated_circle_rect, cached_back_layer, cached_back_layer.rect ());
 	p.setRenderHint (QPainter::Antialiasing, true);

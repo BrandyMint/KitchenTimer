@@ -44,13 +44,14 @@ DigitalTimer::DigitalTimer (Background *parent)
       estimated_minute_subtract_rect (0, 0, 0, 0),
       estimated_minute_scroll_rect (0, 0, 0, 0)
 {
+    setAttribute (Qt::WA_OpaquePaintEvent);
     font.setPixelSize (estimated_font_size);
     setFont (font);
     mouse_move_elapsed_timer.start ();
-    connect (app_manager->getCurrentTimer (), SIGNAL (timeout ()), this, SLOT (update ()));
+    connect (app_manager->getCurrentTimer (), SIGNAL (timeout ()), background, SLOT (update ()));
     connect (app_manager->getCurrentTimer (), SIGNAL (timeout ()), &animator, SLOT (stop ()));
-    connect (app_manager->getCurrentTimer (), SIGNAL (newTimeSet ()), this, SLOT (update ()));
-    connect (&edit_mode, SIGNAL (unblockedByTimeout ()), this, SLOT (update ()));
+    connect (app_manager->getCurrentTimer (), SIGNAL (newTimeSet ()), background, SLOT (update ()));
+    connect (&edit_mode, SIGNAL (unblockedByTimeout ()), background, SLOT (update ()));
     connect (&edit_mode, SIGNAL (unhaltedByTimeout ()), this, SLOT (unhaltEditByTimeout ()));
 }
 DigitalTimer::~DigitalTimer ()
@@ -93,14 +94,14 @@ void DigitalTimer::enterEditMode (int new_unblock_timeout)
     unblock_timeout = new_unblock_timeout;
     edit_mode.enter (new_unblock_timeout);
     animator.stop ();
-    update ();
+    background->update ();
 }
 void DigitalTimer::enterEditModePressed (int new_unblock_timeout, int new_unhalt_timeout)
 {
     unblock_timeout = new_unblock_timeout;
     edit_mode.enterPressed (new_unblock_timeout, new_unhalt_timeout);
     animator.stop ();
-    update ();
+    background->update ();
 }
 void DigitalTimer::leaveEditMode ()
 {
@@ -108,7 +109,7 @@ void DigitalTimer::leaveEditMode ()
     int ms = QTime (0, 0, 0).msecsTo (app_manager->getCurrentTimer ()->getTimeLeft ()); // TODO: Switch to Qt-5.2.0: .msecsSinceStartOfDay ();
     if (ms > 0)
 	animator.start ();
-    update ();
+    background->update ();
 }
 void DigitalTimer::unhaltEditByTimeout ()
 {
@@ -130,7 +131,7 @@ void DigitalTimer::unhaltEditByTimeout ()
 	    }
 	}
 	previous_point = button_pressed_point;
-	update ();
+	background->update ();
     }
 }
 void DigitalTimer::resizeEvent (QResizeEvent*)
@@ -262,6 +263,7 @@ void DigitalTimer::resizeEvent (QResizeEvent*)
 						  base_y_start,
 						  estimated_char_bounding_size.width ()*6 + estimated_separator_bounding_size.width ()*4,
 						  estimated_char_bounding_size.height ());
+	    blend_layer = QImage (size (), QImage::Format_RGB32);
 	}
     } break;
     }
@@ -290,7 +292,7 @@ void DigitalTimer::mousePressEvent (QMouseEvent *event)
 		    button_pressed_rect = estimated_minute_scroll_rect;
 		}
 	    }
-	    update ();
+	    background->update ();
 	} else {
 	    emit enterEditModeRequested ();
 	}
@@ -322,7 +324,7 @@ void DigitalTimer::mouseReleaseEvent (QMouseEvent *event)
 	    }
 	}
 	button_pressed = NonePressed;
-	update ();
+	background->update ();
     }
 }
 void DigitalTimer::mouseMoveEvent (QMouseEvent *event)
@@ -714,19 +716,17 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	}
     } break;
     case 1: { ///////////////////// Optimized for iOS
-	QImage tmp_image (size (), QImage::Format_RGB32);
-	tmp_image.fill (0);
+	blend_layer.fill (0);
 	QPainter p2;
-	p2.begin (&tmp_image);
+	p2.begin (&blend_layer);
 	const QImage &background_image = background->getCachedImage ();
-	p2.drawImage (tmp_image.rect (), background_image, QRect (mapToParent (QPoint (0, 0)), tmp_image.size ()));
+	p2.drawImage (blend_layer.rect (), background_image, QRect (mapToParent (QPoint (0, 0)), blend_layer.size ()));
 	int shade_alpha = background->getShadeAlpha ();
 	if (shade_alpha) {
 	    p2.setPen (Qt::NoPen);
 	    p2.setBrush (QColor (0, 0, 0, shade_alpha));
-	    p2.drawRect (tmp_image.rect ());
+	    p2.drawRect (blend_layer.rect ());
 	}
-
 	const QRect &current_rect = rect ();
 	QString hour_text = value.toString ("hh");
 	QString minute_text = value.toString ("mm");
@@ -1041,7 +1041,7 @@ void DigitalTimer::paintEvent (QPaintEvent*)
 	    }
 	}
 	p2.end ();
-	p.drawImage (rect (), tmp_image, rect ());
+	p.drawImage (rect (), blend_layer, rect ());
     } break;
     }
     if (KITCHENTIMER_SHOW_DEBUG_OVERLAY) {

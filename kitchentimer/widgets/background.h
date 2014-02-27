@@ -20,7 +20,8 @@ public:
     void startUnshading (int);
     const QImage &getCachedImage ();
     int getShadeAlpha ();
-
+    void update ();
+    
 protected:
     void resizeEvent (QResizeEvent*);
     void mousePressEvent (QMouseEvent*);

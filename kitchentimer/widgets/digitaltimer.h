@@ -14,7 +14,6 @@
 
 class Background;
 
-
 class DigitalTimer: public QWidget
 {
     Q_OBJECT
@@ -79,6 +78,8 @@ private:
     QRect estimated_minute_add_rect;
     QRect estimated_minute_subtract_rect;
     QRect estimated_minute_scroll_rect;
+    
+    QImage blend_layer;
 
 signals:
     void enterEditModeRequested ();

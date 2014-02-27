@@ -12,12 +12,14 @@
 #include <QRect>
 #include <QPointF>
 
+class Background;
+
 class AnalogTimer: public QWidget
 {
     Q_OBJECT
 
 public:
-    AnalogTimer (QWidget* = NULL);
+    AnalogTimer (Background* = NULL);
     ~AnalogTimer ();
     void enterEditMode (int);
     void enterEditModePressed (int, int);
@@ -38,6 +40,7 @@ private slots:
     void unhaltEditByTimeout ();
 
 private:
+    Background *background;
     QFont font;
     QFont small_font;
     QElapsedTimer lifetime_elapsed_timer;
@@ -68,7 +71,7 @@ private:
     QImage cached_back_layer;
     QImage cached_analog_timer_handle_layer;
     QImage cached_over_layer;
-#if Q_OS_MAC
+#ifdef Q_OS_MAC
     QImage blend_layer;
 #endif
 

@@ -56,10 +56,8 @@ void Background::paintEvent (QPaintEvent*)
 {
     QPainter p (this);
     p.drawImage (cached_image.rect (), cached_image, cached_image.rect ());
-    shade_alpha = 0;
     if (shaded || animator.isRunning ()) {
 	p.setPen (Qt::NoPen);
-	shade_alpha = int (animator.phase ()*192);
 	p.setBrush (QColor (0, 0, 0, shade_alpha));
 	p.drawRect (rect ());
     }
@@ -89,4 +87,16 @@ const QImage &Background::getCachedImage ()
 int Background::getShadeAlpha ()
 {
     return shade_alpha;
+}
+void Background::update ()
+{
+    shade_alpha = 0;
+    if (shaded || animator.isRunning ())
+	shade_alpha = int (animator.phase ()*192);
+    QWidget::update ();
+    const QObjectList &child_list = children ();
+    for (QObjectList::const_iterator it = child_list.begin (); it != child_list.end (); ++it) {
+	if ((*it)->isWidgetType ())
+	    ((QWidget*) (*it))->update ();
+    }
 }
