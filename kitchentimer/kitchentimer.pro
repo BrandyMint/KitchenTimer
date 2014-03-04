@@ -106,14 +106,34 @@ RESOURCES += resources/images.qrc resources/misc.qrc
 !ios {
 RESOURCES += resources/audio-mono/audio-mono.qrc
 }
-ios {
-RESOURCES += resources/audio-stereo/audio-stereo.qrc
-}
 
 ios {
 fonts.files = "resources/fonts/Cartonsix NC.ttf"
 fonts.path = fonts
 QMAKE_BUNDLE_DATA += fonts
+audio.files = \
+"resources/audio-stereo/audio-enabled.wav" \
+"resources/audio-stereo/alarm.wav" \
+"resources/audio-stereo/alarm-manual.wav" \
+"resources/audio-stereo/timer-start.wav" \
+"resources/audio-stereo/analog-timer-press.wav" \
+"resources/audio-stereo/analog-timer-release.wav" \
+"resources/audio-stereo/analog-timer-slide-01.wav" \
+"resources/audio-stereo/analog-timer-slide-02.wav" \
+"resources/audio-stereo/analog-timer-slide-03.wav" \
+"resources/audio-stereo/analog-timer-slide-04.wav" \
+"resources/audio-stereo/analog-timer-slide-05.wav" \
+"resources/audio-stereo/analog-timer-slide-06.wav" \
+"resources/audio-stereo/analog-timer-slide-07.wav" \
+"resources/audio-stereo/analog-timer-slide-08.wav" \
+"resources/audio-stereo/analog-timer-slide-09.wav" \
+"resources/audio-stereo/analog-timer-slide-10.wav" \
+"resources/audio-stereo/analog-timer-slide-11.wav" \
+"resources/audio-stereo/analog-timer-slide-12.wav" \
+"resources/audio-stereo/analog-timer-slide-13.wav" \
+"resources/audio-stereo/analog-timer-slide-14.wav"
+audio.path = audio
+QMAKE_BUNDLE_DATA += audio
 QMAKE_INFO_PLIST = "ios-sources/Qt_Info.plist"
 }
 

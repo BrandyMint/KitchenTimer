@@ -14,6 +14,9 @@ class QAudioOutput;
 class QFile;
 QT_END_NAMESPACE
 
+#ifdef Q_OS_MAC
+struct av_audio_channel_t;
+#endif
 
 class AudioChannel: public QObject
 {
@@ -69,10 +72,17 @@ public slots:
 private:
     bool audio_enabled;
 
+#ifdef Q_OS_MAC
+    struct av_audio_channel_t *ios_alarm_channel;
+    struct av_audio_channel_t *ios_event_channel;
+    struct av_audio_channel_t *ios_click_channel;
+    struct av_audio_channel_t *ios_slide_channel;
+#else
     AudioChannel *alarm_channel;
     AudioChannel *event_channel;
     AudioChannel *click_channel;
     AudioChannel *slide_channel;
+#endif
 };
 
 

@@ -5,59 +5,9 @@
 
 #include <QSettings>
 #include <QApplication>
-#ifdef KITCHENTIMER_DEBUG_BUILD
-#  include <QTcpSocket>
-#endif
 
 static ApplicationManager *instance = NULL;
 
-#ifdef KITCHENTIMER_DEBUG_BUILD
-static NetworkLog *network_log_instance = NULL;
-
-NetworkLog *NetworkLog::getInstance ()
-{
-    if (!network_log_instance) {
-	qFatal ("No NetworkLog instance created, exiting...");
-	qApp->exit (1);
-    }
-    return network_log_instance;
-}
-
-NetworkLog::NetworkLog ()
-{
-    if (network_log_instance) {
-	qFatal ("Only one instance of NetworkLog at a time allowed, exiting...");
-	qApp->exit (1);
-    }
-
-    network_log_instance = this;
-
-    socket = new QTcpSocket ();
-    socket->connectToHost ("192.168.0.13", 9938);
-    if (!socket->waitForConnected (3000)) {
-	qCritical ("Couldn't connect to debug server, exiting...");
-    }
-}
-NetworkLog::~NetworkLog ()
-{
-    delete socket;
-    network_log_instance = NULL;
-}
-void NetworkLog::write (const QByteArray &data)
-{
-    socket->write (data);
-    socket->flush ();
-}
-void NetworkLog::write (const QString &data)
-{
-    write (data.toUtf8 ());
-}
-void NetworkLog::log (const QString &data)
-{
-    write (QTime::currentTime ().toString ("hh:mm:ss.zzz") + "| " + data + "\n");
-}
-
-#endif
 
 ApplicationManager *ApplicationManager::getInstance ()
 {
@@ -91,9 +41,6 @@ ApplicationManager::ApplicationManager ()
 
     connect (current_timer, SIGNAL (timeout ()), this, SLOT (runAlarmOnce ()));
 
-#ifdef KITCHENTIMER_DEBUG_BUILD
-    new NetworkLog ();
-#endif
 #ifdef Q_OS_MAC
     ios_adjust_idle_timeout ();
 #endif

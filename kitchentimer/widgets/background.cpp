@@ -10,6 +10,7 @@
 Background::Background (QWidget *parent)
     : QWidget (parent), animator (this, ANIMATION_MIN_FRAME_TIMEOUT), shaded (false), shade_alpha (0)
 {
+    setAttribute (Qt::WA_OpaquePaintEvent);
 }
 void Background::resizeEvent (QResizeEvent*)
 {
