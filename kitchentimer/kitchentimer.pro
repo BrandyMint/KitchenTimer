@@ -5,7 +5,7 @@ CONFIG += qt release
 QT += widgets multimedia svg opengl androidextras gui-private
 } ios {
 CONFIG += qt release
-QT += widgets multimedia svg opengl
+QT += widgets svg opengl
 } !android:!ios {
 CONFIG += qt release
 QT += widgets multimedia svg opengl

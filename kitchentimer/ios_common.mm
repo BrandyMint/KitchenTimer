@@ -2,6 +2,7 @@
 
 #include <AudioToolbox/AudioToolbox.h>
 #include <AVFoundation/AVAudioPlayer.h>
+#include <AVFoundation/AVAudioSession.h>
 #include <UIKit/UIApplication.h>
 #include <Foundation/NSURL.h>
 
@@ -18,7 +19,7 @@ void ios_adjust_idle_timeout ()
 @interface IOSAudioSequencer: NSObject <AVAudioPlayerDelegate>
 {
 }
-- (void) initAudioSequencer:(av_audio_channel_t*) channel sample_count:(int)sample_count sample_source_names:(const char**)sample_source_names;
+- (IOSAudioSequencer*) initAudioSequencer:(av_audio_channel_t*) channel sample_count:(int)sample_count sample_source_names:(const char**)sample_source_names keepalive_timeout:(double)in_keepalive_timeout;
 - (void) startPlay;
 - (void) audioPlayerDidFinishPlaying:(AVAudioPlayer *)player successfully:(BOOL)flag;
 @end
@@ -35,9 +36,12 @@ struct av_audio_channel_t {
     av_audio_channel_t *audio_channel;
     NSDate *keepalive_start;
     NSMutableArray *sample_sources;
+    double keepalive_timeout;
 }
-- (void) initAudioSequencer:(av_audio_channel_t*) channel sample_count:(int)sample_count sample_source_names:(const char**)sample_source_names
+- (IOSAudioSequencer*) initAudioSequencer:(av_audio_channel_t*) channel sample_count:(int)sample_count sample_source_names:(const char**)sample_source_names keepalive_timeout:(double)in_keepalive_timeout
 {
+    if (!(self = [super init]))
+	return nil;
     audio_channel = channel;
     keepalive_start = [NSDate date];
     sample_sources = [[NSMutableArray alloc] initWithCapacity:sample_count];
@@ -49,6 +53,8 @@ struct av_audio_channel_t {
 	[ns_name release];
 	[fileURL release];
     }
+    keepalive_timeout = in_keepalive_timeout;
+    return self;
 }
 - (void) startPlay
 {
@@ -67,13 +73,24 @@ struct av_audio_channel_t {
 }
 - (void) audioPlayerDidFinishPlaying:(AVAudioPlayer *)player successfully:(BOOL)flag
 {
-    if (flag && player && audio_channel->sequence_started && ([keepalive_start timeIntervalSinceNow] > -0.5)) {
+    if (flag && player && audio_channel->sequence_started && ([keepalive_start timeIntervalSinceNow] > -keepalive_timeout)) {
 	[self startSample];
     } else {
 	audio_channel->sequence_started = 0;
     }
 }
 @end
+
+int ios_audio_init ()
+{
+    AVAudioSession *session = [AVAudioSession sharedInstance];
+    if (session) {
+	[session setCategory: AVAudioSessionCategoryPlayback error: nil];
+	[session setActive: YES error: nil];
+	return 1;
+    }
+    return 0;
+}
 
 av_audio_channel_t *av_audio_channel_create ()
 {
@@ -83,12 +100,11 @@ av_audio_channel_t *av_audio_channel_create ()
     s->sequence_started = 0;
     return s;
 }
-av_audio_channel_t *av_audio_channel_create_with_sequencer (int sample_count, const char **sample_source_names)
+av_audio_channel_t *av_audio_channel_create_with_sequencer (int sample_count, const char **sample_source_names, double keepalive_timeout)
 {
     av_audio_channel_t *s = (av_audio_channel_t*) malloc (sizeof (av_audio_channel_t));
     s->player = NULL;
-    IOSAudioSequencer *sequencer = [[IOSAudioSequencer alloc] init];
-    [sequencer initAudioSequencer:s sample_count:sample_count sample_source_names:sample_source_names];
+    IOSAudioSequencer *sequencer = [[IOSAudioSequencer alloc] initAudioSequencer:s sample_count:sample_count sample_source_names:sample_source_names  keepalive_timeout: keepalive_timeout];
     s->sequencer = sequencer;
     s->sequence_started = 0;
     return s;

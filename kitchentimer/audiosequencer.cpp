@@ -2,13 +2,13 @@
 #include "applicationmanager.h"
 #ifdef Q_OS_MAC
 #  include "ios_common.h"
+#else
+#  include <QAudioOutput>
+#  include <QFile>
 #endif
 
 
-#include <QAudioOutput>
-#include <QFile>
-
-
+#ifndef Q_OS_MAC
 AudioChannel::AudioChannel (QAudioFormat format)
     : enabled (true), looped (false), looped_list (false)
 {
@@ -132,10 +132,14 @@ void AudioChannel::cancelLoopedList ()
     looped = false;
     looped_list = false;
 }
+#endif
 
-
+#ifdef Q_OS_MAC
+AudioWorker::AudioWorker ()
+#else
 AudioWorker::AudioWorker (QAudioFormat format)
-    : audio_enabled (true)
+#endif
+: audio_enabled (true)
 {
 #ifdef Q_OS_MAC
     ios_alarm_channel = av_audio_channel_create ();
@@ -157,7 +161,7 @@ AudioWorker::AudioWorker (QAudioFormat format)
 	"audio/analog-timer-slide-13.wav",
 	"audio/analog-timer-slide-14.wav",
     };
-    ios_slide_channel = av_audio_channel_create_with_sequencer (14, source_names);
+    ios_slide_channel = av_audio_channel_create_with_sequencer (14, source_names, 0.25);
 #else
     alarm_channel = new AudioChannel (format);
     event_channel = new AudioChannel (format);
@@ -276,14 +280,32 @@ AudioSequencer::~AudioSequencer ()
 }
 void AudioSequencer::run ()
 {
+#ifdef Q_OS_MAC
+    if (ios_audio_init ()) {
+	AudioWorker *audio_worker = new AudioWorker ();
+    
+	audio_worker->setAudioEnabled (app_manager->getAudioEnabled ());
+
+	connect (this, SIGNAL (enqueueAlarm ()), audio_worker, SLOT (playAlarm ()));
+	connect (this, SIGNAL (enqueueManualAlarm ()), audio_worker, SLOT (playManualAlarm ()));
+	connect (this, SIGNAL (enqueueTimerStart ()), audio_worker, SLOT (playTimerStart ()));
+
+	connect (this, SIGNAL (enqueueAnalogTimerPress ()), audio_worker, SLOT (playAnalogTimerPress ()));
+	connect (this, SIGNAL (enqueueAnalogTimerRelease ()), audio_worker, SLOT (playAnalogTimerRelease ()));
+	connect (this, SIGNAL (enqueueAnalogTimerSlide ()), audio_worker, SLOT (playAnalogTimerSlide ()));
+
+	connect (app_manager, SIGNAL (valueChangedAudioEnabled (bool)), audio_worker, SLOT (setAudioEnabled (bool)));
+	connect (this, SIGNAL (enqueueStopAlarm ()), audio_worker, SLOT (stopAlarm ()));
+
+	exec ();
+
+	delete audio_worker;
+    }
+#else
     QAudioFormat format;
 
     format.setSampleRate (22050);
-#ifdef Q_OS_MAC
-    format.setChannelCount (2);
-#else
     format.setChannelCount (1);
-#endif
     format.setSampleSize (16);
     format.setCodec ("audio/pcm");
     format.setByteOrder (QAudioFormat::LittleEndian);
@@ -312,4 +334,5 @@ void AudioSequencer::run ()
     } else {
         qCritical ("Audio audio format not supported by backend, cannot play audio.");
     }
+#endif
 }

@@ -9,8 +9,10 @@ extern void ios_adjust_idle_timeout ();
 struct av_audio_channel_t;
 typedef struct av_audio_channel_t av_audio_channel_t;
 
+extern int ios_audio_init ();
+
 extern av_audio_channel_t *av_audio_channel_create ();
-extern av_audio_channel_t *av_audio_channel_create_with_sequencer (int, const char**);
+extern av_audio_channel_t *av_audio_channel_create_with_sequencer (int, const char**, double);
 extern void av_audio_channel_destroy (av_audio_channel_t*);
 extern void av_audio_channel_play (av_audio_channel_t*, const char*, int);
 extern void av_audio_channel_play_sequence (av_audio_channel_t*);

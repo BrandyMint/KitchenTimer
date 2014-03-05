@@ -3,21 +3,24 @@
 #ifndef AUDIOSEQUENCER_H
 #define AUDIOSEQUENCER_H
 
-#include <QAudio>
-#include <QAudioFormat>
 #include <QThread>
 #include <QStringList>
 #include <QTimer>
+#ifndef Q_OS_MAC
+#  include <QAudio>
+#  include <QAudioFormat>
+#endif
 
+#ifndef Q_OS_MAC
 QT_BEGIN_NAMESPACE
 class QAudioOutput;
 class QFile;
 QT_END_NAMESPACE
+#endif
 
 #ifdef Q_OS_MAC
 struct av_audio_channel_t;
-#endif
-
+#else
 class AudioChannel: public QObject
 {
     Q_OBJECT
@@ -47,13 +50,19 @@ private:
     QStringList source_name_list;
     int stop_timeout_ms;
 };
+#endif
+
 
 class AudioWorker: public QThread
 {
     Q_OBJECT
 
 public:
+#ifdef Q_OS_MAC
+    AudioWorker ();
+#else
     AudioWorker (QAudioFormat);
+#endif
     ~AudioWorker ();
 
 public slots:
