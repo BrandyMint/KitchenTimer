@@ -146,7 +146,6 @@ icons.files = "ios-sources/icons/6.1/Icon.png" \
 "ios-sources/icons/6.1/Icon-Small@2.png" \
 "ios-sources/icons/6.1/Icon-Small-50.png" \
 "ios-sources/icons/6.1/Icon-Small-50@2.png"
-icons.path = icons
 QMAKE_BUNDLE_DATA += icons
 }
 
