@@ -139,14 +139,17 @@ audio.path = audio
 QMAKE_BUNDLE_DATA += audio
 
 icons.files = "ios-sources/icons/6.1/Icon.png" \
-"ios-sources/icons/6.1/Icon@2.png" \
+"ios-sources/icons/6.1/Icon@2x.png" \
 "ios-sources/icons/6.1/Icon-72.png" \
-"ios-sources/icons/6.1/Icon-72@2.png" \
+"ios-sources/icons/6.1/Icon-72@2x.png" \
 "ios-sources/icons/6.1/Icon-Small.png" \
-"ios-sources/icons/6.1/Icon-Small@2.png" \
+"ios-sources/icons/6.1/Icon-Small@2x.png" \
 "ios-sources/icons/6.1/Icon-Small-50.png" \
-"ios-sources/icons/6.1/Icon-Small-50@2.png"
+"ios-sources/icons/6.1/Icon-Small-50@2x.png"
 QMAKE_BUNDLE_DATA += icons
+
+launchimages.files = "ios-sources/launch-images/Default.png"
+QMAKE_BUNDLE_DATA += launchimages
 }
 
 
