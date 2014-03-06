@@ -1,0 +1,10 @@
+#!/bin/bash
+
+convert -scale 57x57 ../icon-src.png Icon.png
+convert -scale 114x114 ../icon-src.png Icon@2.png
+convert -scale 72x72 ../icon-src.png Icon-72.png
+convert -scale 144x144 ../icon-src.png Icon-72@2.png
+convert -scale 29x29 ../icon-src.png Icon-Small.png
+convert -scale 58x58 ../icon-src.png Icon-Small@2.png
+convert -scale 50x50 ../icon-src.png Icon-Small-50.png
+convert -scale 100x100 ../icon-src.png Icon-Small-50@2.png
