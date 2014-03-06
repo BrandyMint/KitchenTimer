@@ -108,9 +108,12 @@ RESOURCES += resources/audio-mono/audio-mono.qrc
 }
 
 ios {
+QMAKE_INFO_PLIST = "ios-sources/Qt_Info.plist"
+
 fonts.files = "resources/fonts/Cartonsix NC.ttf"
 fonts.path = fonts
 QMAKE_BUNDLE_DATA += fonts
+
 audio.files = \
 "resources/audio-stereo/audio-enabled.wav" \
 "resources/audio-stereo/alarm.wav" \
@@ -134,7 +137,17 @@ audio.files = \
 "resources/audio-stereo/analog-timer-slide-14.wav"
 audio.path = audio
 QMAKE_BUNDLE_DATA += audio
-QMAKE_INFO_PLIST = "ios-sources/Qt_Info.plist"
+
+icons.files = "ios-sources/icons/6.1/Icon.png" \
+"ios-sources/icons/6.1/Icon@2.png" \
+"ios-sources/icons/6.1/Icon-72.png" \
+"ios-sources/icons/6.1/Icon-72@2.png" \
+"ios-sources/icons/6.1/Icon-Small.png" \
+"ios-sources/icons/6.1/Icon-Small@2.png" \
+"ios-sources/icons/6.1/Icon-Small-50.png" \
+"ios-sources/icons/6.1/Icon-Small-50@2.png"
+icons.path = icons
+QMAKE_BUNDLE_DATA += icons
 }
 
 

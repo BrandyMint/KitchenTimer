@@ -6,8 +6,21 @@
 	<array>
 	  <string>fonts/Cartonsix NC.ttf</string>
 	</array>
-	<key>CFBundleIconFile</key>
-	<string></string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+	  <string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>CFBundleIconFiles</key>
+	<array>
+	  <string>Icon.png</string>
+	  <string>Icon@2.png</string>
+	  <string>Icon-72.png</string>
+	  <string>Icon-72@2.png</string>
+	  <string>Icon-Small.png</string>
+	  <string>Icon-Small@2.png</string>
+	  <string>Icon-Small-50.png</string>
+	  <string>Icon-Small-50@2.png</string>
+	</array>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleGetInfoString</key>
@@ -19,7 +32,7 @@
 	<key>CFBundleIdentifier</key>
 	<string>com.brandymint.kitchentimer</string>
 	<key>CFBundleDisplayName</key>
-	<string>${PRODUCT_NAME}</string>
+	<string>Kitchen Timer</string>
 	<key>CFBundleName</key>
 	<string>${PRODUCT_NAME}</string>
 	<key>CFBundleShortVersionString</key>
