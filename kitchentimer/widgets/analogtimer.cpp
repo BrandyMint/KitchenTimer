@@ -286,12 +286,10 @@ void AnalogTimer::resizeEvent (QResizeEvent*)
 	}
 	p.end ();
     }
-#ifdef Q_OS_MAC
     {
 	blend_layer = QImage (size (), QImage::Format_RGB32);
 	blend_layer.fill (0);
     }
-#endif
     QRectF handle_rect = getScaledRect (estimated_circle_rect, 0.077519379844961, 0.51162790697674);
     estimated_handle_triangle_points[0] = QPointF (handle_rect.x () + handle_rect.width ()*0.1, handle_rect.y () + handle_rect.height ()*0.12);
     estimated_handle_triangle_points[1] = QPointF (handle_rect.x () + handle_rect.width ()*0.9, handle_rect.y () + handle_rect.height ()*0.12);
@@ -707,7 +705,6 @@ void AnalogTimer::paintEvent (QPaintEvent*)
 	    }
 	    estimated_full_hours = full_hours;
 	}
-#ifdef Q_OS_MAC
 	QPainter p2;
 	blend_layer.fill (0);
 	p2.begin (&blend_layer);
@@ -758,46 +755,6 @@ void AnalogTimer::paintEvent (QPaintEvent*)
 	p2.setRenderHint (QPainter::SmoothPixmapTransform, false);
 	p2.drawImage (estimated_circle_rect, cached_over_layer, cached_over_layer.rect ());
 	p.drawImage (rect (), blend_layer, blend_layer.rect ());
-#else
-	p.drawImage (estimated_circle_rect, cached_back_layer, cached_back_layer.rect ());
-	p.setRenderHint (QPainter::Antialiasing, true);
-	p.setRenderHint (QPainter::SmoothPixmapTransform, true);
-	{
-	    p.setPen (Qt::NoPen);
-	    p.setBrush (estimated_full_grad);
-	    p.drawPie (estimated_accum_circle_rect, 0, 5760);
-	    p.setBrush (estimated_current_grad);
-	    if (app_manager->getCurrentTimer ()->isRunning ()) {
-		if (int_angle) {
-		    p.drawPie (estimated_accum_circle_rect, 1440, 96 - angle*16);
-		    if (lifetime_elapsed_timer.elapsed ()%500 < 250)
-			p.setBrush (estimated_current2_grad);
-		    else
-			p.setBrush (estimated_current3_grad);
-		    p.drawPie (estimated_accum_circle_rect, 1536 - angle*16, -96);
-		}
-	    } else {
-		p.drawPie (estimated_accum_circle_rect, 1440, -angle*16);
-	    }
-	}
-	{
-	    QTransform tr;
-	    tr.translate (estimated_circle_center.x (), estimated_circle_center.y ());
-	    tr.rotate (angle);
-	    tr.scale (press_scale_factor, press_scale_factor);
-	    tr.translate (-estimated_circle_center.x (), -estimated_circle_center.y ());
-	    p.setWorldTransform (tr);
-	    p.drawImage (estimated_circle_handle_rect, cached_analog_timer_handle_layer,
-			 cached_analog_timer_handle_layer.rect ());
-	    p.setPen (Qt::NoPen);
-	    p.setBrush (QColor (0xbf, 0x00, 0x00));
-	    p.drawPolygon (estimated_handle_triangle_points, 3);
-	}
-	p.resetTransform ();
-	p.setRenderHint (QPainter::Antialiasing, false);
-	p.setRenderHint (QPainter::SmoothPixmapTransform, false);
-	p.drawImage (estimated_circle_rect, cached_over_layer, cached_over_layer.rect ());
-#endif
     } break;
     }
 }

@@ -71,9 +71,7 @@ private:
     QImage cached_back_layer;
     QImage cached_analog_timer_handle_layer;
     QImage cached_over_layer;
-#ifdef Q_OS_MAC
     QImage blend_layer;
-#endif
 
 signals:
     void clearAlarms ();
