@@ -148,7 +148,9 @@ icons.files = "ios-sources/icons/6.1/Icon.png" \
 "ios-sources/icons/6.1/Icon-Small-50@2x.png"
 QMAKE_BUNDLE_DATA += icons
 
-launchimages.files = "ios-sources/launch-images/Default.png"
+launchimages.files = "ios-sources/launch-images/Default.png" \
+"ios-sources/launch-images/Default-ipad.png" \
+"ios-sources/launch-images/Default-iphone.png"
 QMAKE_BUNDLE_DATA += launchimages
 }
 
