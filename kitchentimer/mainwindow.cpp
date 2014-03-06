@@ -30,7 +30,11 @@ MainWindow::MainWindow ()
 
     connect (app_manager->getCurrentTimer (), SIGNAL (timeout ()), this, SLOT (showAbove ()));
 
+#ifdef Q_OS_MAC
+    switchToPageTimers ();
+#else
     setCurrentWidget (page_intro);
+#endif
 }
 MainWindow::~MainWindow ()
 {
